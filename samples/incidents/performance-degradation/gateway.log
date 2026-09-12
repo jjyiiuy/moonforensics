@@ -1,0 +1,4 @@
+2026-02-03T14:21:58Z WARN upstream_slow service=catalog-api instance=catalog-api-02 elapsed_ms=1320
+2026-02-03T14:23:17Z ERROR upstream_timeout service=catalog-api instance=catalog-api-02 timeout_ms=2000
+2026-02-03T14:24:42Z ERROR upstream_timeout service=catalog-api instance=catalog-api-02 timeout_ms=2000
+2026-02-03T14:27:05Z INFO upstream_recovered service=catalog-api instance=catalog-api-02 elapsed_ms=280

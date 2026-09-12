@@ -1,0 +1,3 @@
+{"event_id":"proc-001","timestamp":"2026-01-15T10:03:14Z","source":"service-manager","severity":"ERROR","kind":"process","resource":"checkout-api-01","message":"Process exited with a non-zero status","attributes":{"pid":4200,"exit_code":137}}
+{"event_id":"proc-002","timestamp":"2026-01-15T10:03:20Z","source":"service-manager","severity":"INFO","kind":"process","resource":"checkout-api-01","message":"Service restart scheduled","attributes":{"attempt":1,"delay_seconds":4}}
+{"event_id":"proc-003","timestamp":"2026-01-15T10:03:24Z","source":"service-manager","severity":"INFO","kind":"process","resource":"checkout-api-01","message":"Replacement process is running","attributes":{"pid":4218}}

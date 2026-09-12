@@ -1,0 +1,22 @@
+{
+  "case_id": "incident-performance-degradation",
+  "title": "Catalog API latency increase",
+  "timezone": "UTC",
+  "collected_at": "2026-02-03T14:30:00Z",
+  "evidence": [
+    {
+      "id": "catalog-metrics",
+      "path": "metrics.jsonl",
+      "format": "jsonl",
+      "source": "metrics-agent",
+      "description": "CPU, memory, and request latency snapshots"
+    },
+    {
+      "id": "gateway-log",
+      "path": "gateway.log",
+      "format": "text",
+      "source": "edge-gateway",
+      "description": "Gateway observations during the latency increase"
+    }
+  ]
+}

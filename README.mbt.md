@@ -4,9 +4,9 @@ MoonForensics（MoonBit 系统故障取证舱）是一个面向系统故障复�
 证据分析工具。它将逐步支持证据导入与校验、统一时间线、可解释诊断规则以及
 Markdown/JSON 报告。
 
-当前仓库只包含第 2 阶段的 MoonBit 模块骨架，尚未实现证据模型或分析功能。
-项目范围、使用场景和验收契约见
-[`docs/project-brief.md`](docs/project-brief.md)。
+当前仓库包含 MoonBit 模块骨架和三组可复现故障夹具，尚未实现证据模型或分析
+功能。项目范围与验收契约见 [`docs/project-brief.md`](docs/project-brief.md)，
+夹具格式和场景说明见 [`samples/README.md`](samples/README.md)。
 
 ## 环境要求
 
@@ -36,6 +36,7 @@ MoonForensics: scaffold ready
 .
 ├── cmd/main/              # 最小命令行入口
 ├── docs/project-brief.md  # 项目范围与验收契约
+├── samples/incidents/     # 三组脱敏故障证据夹具
 ├── moon.mod               # MoonBit 模块元数据
 ├── moon.pkg               # 根库包
 └── moonforensics.mbt      # 根库包占位文件

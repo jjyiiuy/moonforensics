@@ -1,0 +1,22 @@
+{
+  "case_id": "incident-config-change",
+  "title": "Orders API health failure after pool change",
+  "timezone": "UTC",
+  "collected_at": "2026-03-08T09:05:00Z",
+  "evidence": [
+    {
+      "id": "configuration-events",
+      "path": "changes.jsonl",
+      "format": "jsonl",
+      "source": "config-controller",
+      "description": "Configuration rollout and rollback observations"
+    },
+    {
+      "id": "health-log",
+      "path": "health.log",
+      "format": "text",
+      "source": "health-monitor",
+      "description": "Health checks before and after the change"
+    }
+  ]
+}

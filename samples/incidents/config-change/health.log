@@ -1,0 +1,4 @@
+2026-03-08T08:59:40Z INFO health_check_passed service=orders-api instance=orders-api-01
+2026-03-08T09:00:25Z WARN health_check_degraded service=orders-api instance=orders-api-01 latency_ms=1800
+2026-03-08T09:00:40Z ERROR health_check_failed service=orders-api instance=orders-api-01 reason=database_pool_timeout
+2026-03-08T09:02:30Z INFO health_check_passed service=orders-api instance=orders-api-01
