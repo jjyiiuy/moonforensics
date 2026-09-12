@@ -1,0 +1,57 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lllg123/moonforensics"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct Case {
+  case_id : String
+  title : String
+  timezone : String
+  collected_at : Timestamp
+  evidence : Array[EvidenceItem]
+  metadata : EvidenceMetadata
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum EvidenceFormat {
+  JsonLines
+  PlainText
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct EvidenceItem {
+  id : String
+  source : EvidenceSource
+  path : String
+  format : EvidenceFormat
+  captured_at : Timestamp?
+  metadata : EvidenceMetadata
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct EvidenceMetadata {
+  entries : Array[MetadataEntry]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct EvidenceSource {
+  system : String
+  component : String
+  host : String?
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct MetadataEntry {
+  key : String
+  value : String
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Timestamp {
+  value : String
+} derive(Eq, ToJson, @debug.Debug)
+
+// Type aliases
+
+// Traits
