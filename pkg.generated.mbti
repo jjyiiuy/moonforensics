@@ -8,6 +8,8 @@ import {
 // Values
 pub fn parse_jsonl(String) -> Array[JsonlRecord] raise JsonlParseError
 
+pub fn parse_plain_text(String) -> Array[PlainTextRecord]
+
 // Errors
 pub(all) suberror JsonlParseError {
   InvalidJson(line_number~ : Int, line~ : String)
@@ -56,6 +58,11 @@ pub(all) struct JsonlRecord {
 pub(all) struct MetadataEntry {
   key : String
   value : String
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct PlainTextRecord {
+  line_number : Int
+  text : String
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct Timestamp {
