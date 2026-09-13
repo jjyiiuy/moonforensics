@@ -6,6 +6,16 @@ import {
 }
 
 // Values
+pub fn compare_timestamps(NormalizedTimestamp, NormalizedTimestamp) -> Int
+
+pub fn normalize_event(String?, String?, String, String, String?, String) -> NormalizedEvent raise NormalizationError
+
+pub fn normalize_severity(String) -> Severity
+
+pub fn normalize_source_id(String, String, String?) -> String
+
+pub fn normalize_timestamp(String) -> NormalizedTimestamp raise NormalizationError
+
 pub fn parse_jsonl(String) -> Array[JsonlRecord] raise JsonlParseError
 
 pub fn parse_plain_text(String) -> Array[PlainTextRecord]
@@ -14,6 +24,10 @@ pub fn parse_plain_text(String) -> Array[PlainTextRecord]
 pub(all) suberror JsonlParseError {
   InvalidJson(line_number~ : Int, line~ : String)
   ExpectedObject(line_number~ : Int, line~ : String)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror NormalizationError {
+  InvalidTimestamp(String)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -60,9 +74,33 @@ pub(all) struct MetadataEntry {
   value : String
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct NormalizedEvent {
+  timestamp : NormalizedTimestamp?
+  severity : Severity?
+  source_id : String
+  raw_content : String
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct NormalizedTimestamp {
+  epoch_day : Int
+  second_of_day : Int
+  nanosecond : Int
+  raw : String
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct PlainTextRecord {
   line_number : Int
   text : String
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Severity {
+  Trace
+  Debug
+  Info
+  Warning
+  Error
+  Fatal
+  Unknown(String)
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct Timestamp {
