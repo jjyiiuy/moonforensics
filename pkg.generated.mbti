@@ -8,7 +8,11 @@ import {
 // Values
 pub fn build_evidence_manifest(Array[EvidenceDocument]) -> EvidenceManifest
 
+pub fn build_timeline(Array[NormalizedEvent]) -> Timeline
+
 pub fn compare_timestamps(NormalizedTimestamp, NormalizedTimestamp) -> Int
+
+pub fn filter_timeline_by_source(Timeline, String) -> Timeline
 
 pub fn normalize_event(String?, String?, String, String, String?, String) -> NormalizedEvent raise NormalizationError
 
@@ -22,6 +26,8 @@ pub fn parse_jsonl(String) -> Array[JsonlRecord] raise JsonlParseError
 
 pub fn parse_plain_text(String) -> Array[PlainTextRecord]
 
+pub fn query_timeline_window(Timeline, NormalizedTimestamp, NormalizedTimestamp) -> Timeline raise TimelineError
+
 pub fn verify_evidence_manifest(EvidenceManifest, Array[EvidenceDocument]) -> Bool
 
 // Errors
@@ -32,6 +38,10 @@ pub(all) suberror JsonlParseError {
 
 pub(all) suberror NormalizationError {
   InvalidTimestamp(String)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror TimelineError {
+  InvalidWindow
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -124,6 +134,10 @@ pub(all) enum Severity {
   Error
   Fatal
   Unknown(String)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Timeline {
+  events : Array[NormalizedEvent]
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct Timestamp {
