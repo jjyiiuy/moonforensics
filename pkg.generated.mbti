@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn build_evidence_manifest(Array[EvidenceDocument]) -> EvidenceManifest
+
 pub fn compare_timestamps(NormalizedTimestamp, NormalizedTimestamp) -> Int
 
 pub fn normalize_event(String?, String?, String, String, String?, String) -> NormalizedEvent raise NormalizationError
@@ -19,6 +21,8 @@ pub fn normalize_timestamp(String) -> NormalizedTimestamp raise NormalizationErr
 pub fn parse_jsonl(String) -> Array[JsonlRecord] raise JsonlParseError
 
 pub fn parse_plain_text(String) -> Array[PlainTextRecord]
+
+pub fn verify_evidence_manifest(EvidenceManifest, Array[EvidenceDocument]) -> Bool
 
 // Errors
 pub(all) suberror JsonlParseError {
@@ -40,6 +44,13 @@ pub(all) struct Case {
   metadata : EvidenceMetadata
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct EvidenceDocument {
+  id : String
+  path : String
+  source : EvidenceSource
+  content : Bytes
+} derive(Eq, @debug.Debug)
+
 pub(all) enum EvidenceFormat {
   JsonLines
   PlainText
@@ -52,6 +63,18 @@ pub(all) struct EvidenceItem {
   format : EvidenceFormat
   captured_at : Timestamp?
   metadata : EvidenceMetadata
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct EvidenceManifest {
+  entries : Array[EvidenceManifestEntry]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct EvidenceManifestEntry {
+  id : String
+  path : String
+  source_id : String
+  size_bytes : Int
+  sha256 : String
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct EvidenceMetadata {
