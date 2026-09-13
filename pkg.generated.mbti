@@ -6,8 +6,13 @@ import {
 }
 
 // Values
+pub fn parse_jsonl(String) -> Array[JsonlRecord] raise JsonlParseError
 
 // Errors
+pub(all) suberror JsonlParseError {
+  InvalidJson(line_number~ : Int, line~ : String)
+  ExpectedObject(line_number~ : Int, line~ : String)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub(all) struct Case {
@@ -41,6 +46,11 @@ pub(all) struct EvidenceSource {
   system : String
   component : String
   host : String?
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct JsonlRecord {
+  line_number : Int
+  value : Json
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct MetadataEntry {
