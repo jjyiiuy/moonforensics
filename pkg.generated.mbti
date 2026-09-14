@@ -12,6 +12,8 @@ pub fn build_timeline(Array[NormalizedEvent]) -> Timeline
 
 pub fn compare_timestamps(NormalizedTimestamp, NormalizedTimestamp) -> Int
 
+pub fn correlate_events(Array[CorrelationEvent], Int) -> Array[CorrelationGroup] raise CorrelationError
+
 pub fn evaluate_diagnostic_rules(Timeline, Array[DiagnosticRule]) -> DiagnosticReport
 
 pub fn filter_timeline_by_source(Timeline, String) -> Timeline
@@ -33,6 +35,10 @@ pub fn query_timeline_window(Timeline, NormalizedTimestamp, NormalizedTimestamp)
 pub fn verify_evidence_manifest(EvidenceManifest, Array[EvidenceDocument]) -> Bool
 
 // Errors
+pub(all) suberror CorrelationError {
+  InvalidWindow
+} derive(Eq, @debug.Debug)
+
 pub(all) suberror JsonlParseError {
   InvalidJson(line_number~ : Int, line~ : String)
   ExpectedObject(line_number~ : Int, line~ : String)
@@ -54,6 +60,24 @@ pub(all) struct Case {
   collected_at : Timestamp
   evidence : Array[EvidenceItem]
   metadata : EvidenceMetadata
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct CorrelationEvent {
+  event : NormalizedEvent
+  resource_id : String
+  kind : CorrelationKind
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct CorrelationGroup {
+  resource_id : String
+  events : Array[CorrelationEvent]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum CorrelationKind {
+  Change
+  Alert
+  Crash
+  Other(String)
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct DiagnosticFinding {
