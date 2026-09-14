@@ -32,6 +32,10 @@ pub fn parse_plain_text(String) -> Array[PlainTextRecord]
 
 pub fn query_timeline_window(Timeline, NormalizedTimestamp, NormalizedTimestamp) -> Timeline raise TimelineError
 
+pub fn render_json_report(ForensicReport) -> String
+
+pub fn render_markdown_report(ForensicReport) -> String
+
 pub fn verify_evidence_manifest(EvidenceManifest, Array[EvidenceDocument]) -> Bool
 
 // Errors
@@ -156,6 +160,15 @@ pub(all) struct EvidenceSource {
 pub(all) enum FindingKind {
   Observation
   Hypothesis
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct ForensicReport {
+  case : Case
+  summary : String
+  timeline : Timeline
+  findings : DiagnosticReport
+  evidence_index : EvidenceManifest
+  limitations : Array[String]
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct JsonlRecord {
