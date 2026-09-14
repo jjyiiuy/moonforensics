@@ -12,6 +12,8 @@ pub fn build_timeline(Array[NormalizedEvent]) -> Timeline
 
 pub fn compare_timestamps(NormalizedTimestamp, NormalizedTimestamp) -> Int
 
+pub fn evaluate_diagnostic_rules(Timeline, Array[DiagnosticRule]) -> DiagnosticReport
+
 pub fn filter_timeline_by_source(Timeline, String) -> Timeline
 
 pub fn normalize_event(String?, String?, String, String, String?, String) -> NormalizedEvent raise NormalizationError
@@ -54,6 +56,29 @@ pub(all) struct Case {
   metadata : EvidenceMetadata
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct DiagnosticFinding {
+  rule_id : String
+  title : String
+  explanation : String
+  kind : FindingKind
+  confidence_note : String
+  evidence : Array[EvidenceReference]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct DiagnosticReport {
+  findings : Array[DiagnosticFinding]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct DiagnosticRule {
+  rule_id : String
+  title : String
+  explanation : String
+  kind : FindingKind
+  confidence_note : String
+  severity : Severity?
+  text_contains : String?
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct EvidenceDocument {
   id : String
   path : String
@@ -91,10 +116,22 @@ pub(all) struct EvidenceMetadata {
   entries : Array[MetadataEntry]
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct EvidenceReference {
+  event_index : Int
+  source_id : String
+  timestamp : NormalizedTimestamp?
+  raw_content : String
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct EvidenceSource {
   system : String
   component : String
   host : String?
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum FindingKind {
+  Observation
+  Hypothesis
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct JsonlRecord {
