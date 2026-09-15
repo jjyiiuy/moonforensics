@@ -15,7 +15,9 @@
 在没有构建缓存的环境中执行：
 
 ```sh
-moon --version
+curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s latest
+export PATH="$HOME/.moon/bin:$PATH"
+moon version --all
 moon fmt --check
 moon check --deny-warn
 moon test

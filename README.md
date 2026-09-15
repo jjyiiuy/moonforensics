@@ -55,8 +55,8 @@ moon test
 [`docs/project-brief.md`](docs/project-brief.md)。
 
 发布前检查项见 [`docs/release-checklist.md`](docs/release-checklist.md)；GitHub Actions
-会在全新 Ubuntu 环境中固定 MoonBit 工具链版本，执行格式、类型、测试、接口文件和
-文档 CLI 示例检查。
+会在全新 Ubuntu 环境中安装 MoonBit 最新稳定工具链并记录完整版本，执行格式、类型、
+测试、接口文件和文档 CLI 示例检查。
 
 ## CLI 工作流
 
