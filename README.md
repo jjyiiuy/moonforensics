@@ -54,6 +54,10 @@ moon test
 [`samples/README.md`](samples/README.md)。项目目标和验收约束见
 [`docs/project-brief.md`](docs/project-brief.md)。
 
+发布前检查项见 [`docs/release-checklist.md`](docs/release-checklist.md)；GitHub Actions
+会在全新 Ubuntu 环境中固定 MoonBit 工具链版本，执行格式、类型、测试、接口文件和
+文档 CLI 示例检查。
+
 ## CLI 工作流
 
 命令行入口接受内联证据内容，便于离线复现和脚本调用。三个命令分别负责导入
