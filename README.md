@@ -54,6 +54,21 @@ moon test
 [`samples/README.md`](samples/README.md)。项目目标和验收约束见
 [`docs/project-brief.md`](docs/project-brief.md)。
 
+## CLI 工作流
+
+命令行入口接受内联证据内容，便于离线复现和脚本调用。三个命令分别负责导入
+JSONL、输出最小分析摘要，以及计算证据大小和 SHA-256 清单：
+
+```sh
+moon run cmd/main -- ingest '{"event_id":"evt-1","severity":"INFO"}'
+moon run cmd/main -- analyze '{"event_id":"evt-1","severity":"INFO"}'
+moon run cmd/main -- verify 'evidence bytes'
+```
+
+成功输出 `exit code 0`。参数或命令错误为 `exit code 2`，JSONL/输入错误为
+`exit code 3`，证据校验失败为 `exit code 4`；失败路径同时返回非零进程状态。
+当前入口不直接读取主机文件，调用方可先读取文件内容再将其作为参数传入。
+
 ## 取证边界
 
 - 解析和报告面向已提供的证据内容，不会自行连接主机或采集运行时数据。
