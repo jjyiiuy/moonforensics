@@ -1,12 +1,30 @@
 # MoonForensics
 
-MoonForensics（MoonBit 系统故障取证舱）是一个面向系统故障复盘的离线、可复现
-分析库。它把来源明确的证据整理为可比较的事件时间线，提供完整性校验、规则化
-观察和跨来源关联，并可生成 Markdown 与 JSON 报告。项目强调保留原始内容、记录
-证据出处，以及把“观察到的事实”和“待验证假设”清楚区分。
+MoonForensics 是一个 MoonBit 应用服务离线故障复盘库，以发布或配置变更后的异常调查
+为主场景：在已导出的变更、应用日志和告警中，整理同一服务或实例的事件顺序，
+生成可复核的时间线、候选关联组与证据报告。它不替代日志平台，不自动宣布根因。
 
-当前阶段主要交付 MoonBit 库及静态故障夹具；命令行程序、自动采集、在线遥测和
-自动根因判定不在当前实现范围内。
+目标用户是需要交接事故材料的值班运维、复核变更的发布负责人和调查错误上下文的开发者。
+离线流程适合生产访问受限、材料需脱敏交接，以及同一批证据需要重复复核的情况。
+项目价值是固定分析步骤与证据出处，不是未经测量的排障提速或生产采用率。
+
+当前交付为分析库、静态演示数据和最小 CLI。JSONL 与固定格式文本已通过显式映射
+适配为统一事件，CLI `analyze` 已贯通适配、时间线和候选关联；它仍不读取主机文件，
+也不声称能自动理解任意供应商日志。改进契约、三场景验收与边界见
+[`docs/reapplication-design.md`](docs/reapplication-design.md)。
+
+## 统一抽象与关联前提
+
+现有 `NormalizedEvent` 统一时间、级别、来源和原始文本；`CorrelationEvent` 进一步携带
+资源键与 `Change / Alert / Crash / Other` 角色。调用方先明确字段映射和资源身份，
+核心才按同一资源、至少两个不同来源、最早事件起算的闭区间窗口构建候选组。
+
+配置项、服务和实例不是天然相同的资源；只有显式选择共同分析范围才能关联。
+不通过名称相似或日志关键词猜测身份。缺时间的事件不参与关联；适配器拒绝空资源键，
+没有资源的事件只保留在时间线中。资源与时间关系不是因果证明。
+
+适配结果包含稳定事件 ID、证据 ID/行号和结构化属性，隔离供应商格式差异。
+通用性来自“适配层处理输入差异，分析核心复用事件契约”，而不是自动理解所有格式。
 
 ## 能力概览
 
@@ -24,8 +42,9 @@ MoonForensics（MoonBit 系统故障取证舱）是一个面向系统故障复�
 
 ```text
 .
-├── cmd/main/                   # 当前为最小命令行骨架
+├── cmd/main/                   # 最小 CLI，贯通 JSONL 分析与摘要校验
 ├── docs/project-brief.md       # 项目范围和验收契约
+├── docs/reapplication-design.md # 复审改进设计与适用边界
 ├── samples/incidents/          # 固定时间的脱敏故障夹具
 ├── correlation.mbt             # 跨来源事件关联
 ├── integrity.mbt               # 证据摘要及清单校验
@@ -46,6 +65,7 @@ MoonForensics（MoonBit 系统故障取证舱）是一个面向系统故障复�
 ```sh
 moon fmt
 moon check --deny-warn
+moon build
 moon test
 ```
 
@@ -65,13 +85,16 @@ JSONL、输出最小分析摘要，以及计算证据大小和 SHA-256 清单：
 
 ```sh
 moon run cmd/main -- ingest '{"event_id":"evt-1","severity":"INFO"}'
-moon run cmd/main -- analyze '{"event_id":"evt-1","severity":"INFO"}'
+moon run cmd/main -- analyze '{"event_id":"evt-1","timestamp":"2026-03-08T09:00:00Z","source":"cli","severity":"INFO","resource":"demo-service"}'
 moon run cmd/main -- verify 'evidence bytes'
+moon run cmd/main -- verify 'evidence bytes' 9d11f9a71c12d6194481f5fa5086b0eff7df05a4a228f022f55bd890009a9d16
 ```
 
 成功输出 `exit code 0`。参数或命令错误为 `exit code 2`，JSONL/输入错误为
 `exit code 3`，证据校验失败为 `exit code 4`；失败路径同时返回非零进程状态。
 当前入口不直接读取主机文件，调用方可先读取文件内容再将其作为参数传入。
+`analyze` 会通过显式 JSONL 字段映射生成统一事件、时间线和候选关联组；`verify` 的可选摘要参数
+用于复核已有清单。缺少事件必需字段或摘要不匹配时返回非零退出码。
 
 ## 取证边界
 

@@ -1,4 +1,4 @@
-name = "lllg123/moonforensics"
+name = "jjyiiuy/moonforensics"
 
 version = "0.1.0"
 

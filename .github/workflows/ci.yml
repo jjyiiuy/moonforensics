@@ -24,7 +24,10 @@ jobs:
       - name: Install MoonBit
         shell: bash
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s "$MOONBIT_CHANNEL"
+          if ! curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s "$MOONBIT_CHANNEL"; then
+            echo "Primary MoonBit mirror failed; retrying the official China mirror"
+            curl -fsSL https://cli.moonbitlang.cn/install/unix.sh | bash -s "$MOONBIT_CHANNEL"
+          fi
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
 
       - name: Show toolchain
@@ -35,6 +38,9 @@ jobs:
 
       - name: Type check without warnings
         run: moon check --deny-warn
+
+      - name: Build project
+        run: moon build
 
       - name: Run test suite
         run: moon test
@@ -49,8 +55,14 @@ jobs:
         shell: bash
         run: |
           moon run cmd/main -- ingest '{"event_id":"evt-1","severity":"INFO"}'
-          moon run cmd/main -- analyze '{"event_id":"evt-1","severity":"INFO"}'
+          moon run cmd/main -- analyze '{"event_id":"evt-1","timestamp":"2026-03-08T09:00:00Z","source":"cli","severity":"INFO","resource":"demo-service"}'
           moon run cmd/main -- verify 'evidence bytes'
+          moon run cmd/main -- verify 'evidence bytes' 9d11f9a71c12d6194481f5fa5086b0eff7df05a4a228f022f55bd890009a9d16
+          set +e
+          moon run cmd/main -- verify 'evidence bytes' 0000000000000000000000000000000000000000000000000000000000000000
+          status=$?
+          set -e
+          test "$status" -eq 4
 
       - name: Check release documentation
         shell: bash

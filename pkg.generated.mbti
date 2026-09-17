@@ -1,11 +1,15 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "lllg123/moonforensics"
+package "jjyiiuy/moonforensics"
 
 import {
   "moonbitlang/core/debug",
 }
 
 // Values
+pub fn adapt_jsonl_records(Array[JsonlRecord], JsonlEventMapping) -> Array[IncidentEvent] raise EventAdaptError
+
+pub fn adapt_plain_text_records(Array[PlainTextRecord], PlainTextEventMapping) -> Array[IncidentEvent] raise EventAdaptError
+
 pub fn build_evidence_manifest(Array[EvidenceDocument]) -> EvidenceManifest
 
 pub fn build_timeline(Array[NormalizedEvent]) -> Timeline
@@ -14,9 +18,13 @@ pub fn compare_timestamps(NormalizedTimestamp, NormalizedTimestamp) -> Int
 
 pub fn correlate_events(Array[CorrelationEvent], Int) -> Array[CorrelationGroup] raise CorrelationError
 
+pub fn correlate_incident_events(Array[IncidentEvent], Int) -> Array[CorrelationGroup] raise CorrelationError
+
 pub fn evaluate_diagnostic_rules(Timeline, Array[DiagnosticRule]) -> DiagnosticReport
 
 pub fn filter_timeline_by_source(Timeline, String) -> Timeline
+
+pub fn incident_timeline(Array[IncidentEvent]) -> Timeline
 
 pub fn normalize_event(String?, String?, String, String, String?, String) -> NormalizedEvent raise NormalizationError
 
@@ -41,6 +49,12 @@ pub fn verify_evidence_manifest(EvidenceManifest, Array[EvidenceDocument]) -> Bo
 // Errors
 pub(all) suberror CorrelationError {
   InvalidWindow
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror EventAdaptError {
+  MissingField(line_number~ : Int, field~ : String)
+  InvalidField(line_number~ : Int, field~ : String, value~ : String)
+  InvalidText(line_number~ : Int, reason~ : String)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror JsonlParseError {
@@ -107,6 +121,11 @@ pub(all) struct DiagnosticRule {
   text_contains : String?
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct EventEvidence {
+  evidence_id : String
+  line_number : Int
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct EvidenceDocument {
   id : String
   path : String
@@ -171,6 +190,27 @@ pub(all) struct ForensicReport {
   limitations : Array[String]
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct IncidentEvent {
+  event_id : String
+  normalized : NormalizedEvent
+  resource_id : String?
+  kind : CorrelationKind
+  attributes : Json
+  evidence : EventEvidence
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct JsonlEventMapping {
+  system : String
+  source_field : String
+  event_id_field : String
+  timestamp_field : String
+  severity_field : String
+  resource_field : String?
+  resource_override : String?
+  kind : CorrelationKind
+  evidence_id : String
+} derive(Eq, @debug.Debug)
+
 pub(all) struct JsonlRecord {
   line_number : Int
   value : Json
@@ -194,6 +234,14 @@ pub(all) struct NormalizedTimestamp {
   nanosecond : Int
   raw : String
 } derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct PlainTextEventMapping {
+  system : String
+  component : String
+  resource_id : String?
+  kind : CorrelationKind
+  evidence_id : String
+} derive(Eq, @debug.Debug)
 
 pub(all) struct PlainTextRecord {
   line_number : Int

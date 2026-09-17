@@ -1,9 +1,51 @@
 ///|
-suberror CliError {
-  Usage
-  Input
-  Verification
-} derive(Debug)
+#cfg(any(target="native", target="llvm"))
+extern "c" fn moonforensics_process_exit_native(code : Int) = "exit"
+
+///|
+#cfg(target="wasm")
+fn moonforensics_process_exit_wasm(code : Int) -> Unit = "wasi_snapshot_preview1" "proc_exit"
+
+///|
+#cfg(target="wasm-gc")
+fn moonforensics_process_exit_wasm_gc(code : Int) -> Unit = "__moonbit_sys_unstable" "exit"
+
+///|
+#cfg(target="js")
+extern "js" fn moonforensics_process_exit_js(code : Int) -> Bool =
+  #| function(code) {
+  #|   if (typeof process !== "undefined" && typeof process.exit === "function") {
+  #|     process.exit(code);
+  #|     return true;
+  #|   }
+  #|   return false;
+  #| }
+
+///|
+#cfg(any(target="native", target="llvm"))
+fn process_exit(code : Int) -> Unit {
+  moonforensics_process_exit_native(code)
+}
+
+///|
+#cfg(target="wasm")
+fn process_exit(code : Int) -> Unit {
+  moonforensics_process_exit_wasm(code)
+}
+
+///|
+#cfg(target="wasm-gc")
+fn process_exit(code : Int) -> Unit {
+  moonforensics_process_exit_wasm_gc(code)
+}
+
+///|
+#cfg(target="js")
+fn process_exit(code : Int) -> Unit {
+  if !moonforensics_process_exit_js(code) {
+    panic()
+  }
+}
 
 ///|
 fn usage() -> Unit {
@@ -11,7 +53,7 @@ fn usage() -> Unit {
   println("Usage:")
   println("  moon run cmd/main -- ingest <jsonl-source>")
   println("  moon run cmd/main -- analyze <jsonl-source>")
-  println("  moon run cmd/main -- verify <evidence-source>")
+  println("  moon run cmd/main -- verify <evidence-source> [expected-sha256]")
   println(
     "Exit codes: 0 success, 2 usage, 3 input error, 4 verification failure",
   )
@@ -59,14 +101,50 @@ fn analyze(source : String) -> Int {
         }
       } noraise {
         records => {
-          println("# Analysis")
-          println("")
-          println("- records: \{records.length()}")
-          println(
-            "- limitations: input records are observations; no root cause is inferred",
-          )
-          println("analyze finished (exit code 0)")
-          0
+          let mapping = @moonforensics.JsonlEventMapping::{
+            system: "cli",
+            source_field: "source",
+            event_id_field: "event_id",
+            timestamp_field: "timestamp",
+            severity_field: "severity",
+            resource_field: Some("resource"),
+            resource_override: None,
+            kind: @moonforensics.CorrelationKind::Other("input"),
+            evidence_id: "cli-jsonl",
+          }
+          try @moonforensics.adapt_jsonl_records(records, mapping) catch {
+            _ => {
+              println(
+                "analyze failed (exit code 3): required event fields are invalid",
+              )
+              return 3
+            }
+          } noraise {
+            events =>
+              try @moonforensics.correlate_incident_events(events, 60) catch {
+                _ => {
+                  println(
+                    "analyze failed (exit code 3): invalid correlation window",
+                  )
+                  return 3
+                }
+              } noraise {
+                groups => {
+                  let timeline = @moonforensics.incident_timeline(events)
+                  println("# Analysis")
+                  println("")
+                  println("- records: \{records.length()}")
+                  println("- events: \{events.length()}")
+                  println("- timeline events: \{timeline.events.length()}")
+                  println("- correlation groups: \{groups.length()}")
+                  println(
+                    "- limitations: associations are resource/time observations; no root cause is inferred",
+                  )
+                  println("analyze finished (exit code 0)")
+                  0
+                }
+              }
+          }
         }
       }
     None => {
@@ -77,7 +155,7 @@ fn analyze(source : String) -> Int {
 }
 
 ///|
-fn verify(source : String) -> Int {
+fn verify(source : String, expected_sha256 : String?) -> Int {
   match read_input(source) {
     Some(source) => {
       let document = @moonforensics.EvidenceDocument::{
@@ -91,10 +169,27 @@ fn verify(source : String) -> Int {
         content: @utf8.encode(source),
       }
       let manifest = @moonforensics.build_evidence_manifest([document])
-      println(
-        "verify ok (exit code 0): \{manifest.entries[0].size_bytes} bytes, sha256=\{manifest.entries[0].sha256}",
-      )
-      0
+      let entry = manifest.entries[0]
+      match expected_sha256 {
+        Some(expected) =>
+          if entry.sha256 != expected {
+            println(
+              "verify failed (exit code 4): expected sha256=\{expected}, actual=\{entry.sha256}",
+            )
+            4
+          } else {
+            println(
+              "verify ok (exit code 0): manifest matches \{entry.size_bytes} bytes, sha256=\{entry.sha256}",
+            )
+            0
+          }
+        None => {
+          println(
+            "verify ok (exit code 0): \{entry.size_bytes} bytes, sha256=\{entry.sha256}",
+          )
+          0
+        }
+      }
     }
     None => {
       println("verify failed (exit code 4): empty input")
@@ -104,11 +199,12 @@ fn verify(source : String) -> Int {
 }
 
 ///|
-fn main raise CliError {
+fn main {
   let args = @env.args()
   if args.length() < 2 {
     usage()
-    raise CliError::Usage
+    process_exit(2)
+    return
   }
   let command = args[1]
   if command == "--help" || command == "-h" {
@@ -117,13 +213,15 @@ fn main raise CliError {
   }
   if args.length() < 3 {
     usage()
-    raise CliError::Usage
+    process_exit(2)
+    return
   }
   let path = args[2]
+  let expected_sha256 = if args.length() >= 4 { Some(args[3]) } else { None }
   let exit_code = match command {
     "ingest" => ingest(path)
     "analyze" => analyze(path)
-    "verify" => verify(path)
+    "verify" => verify(path, expected_sha256)
     _ => {
       println("unknown command (exit code 2): \{command}")
       usage()
@@ -131,10 +229,6 @@ fn main raise CliError {
     }
   }
   if exit_code != 0 {
-    match exit_code {
-      2 => raise CliError::Usage
-      3 => raise CliError::Input
-      _ => raise CliError::Verification
-    }
+    process_exit(exit_code)
   }
 }

@@ -1,14 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "lllg123/moonforensics/cmd/main"
-
-import {
-  "moonbitlang/core/debug",
-}
+package "jjyiiuy/moonforensics/cmd/main"
 
 // Values
 
 // Errors
-type CliError derive(@debug.Debug)
 
 // Types and methods
 

@@ -15,11 +15,14 @@
 在没有构建缓存的环境中执行：
 
 ```sh
-curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s latest
+if ! curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s latest; then
+  curl -fsSL https://cli.moonbitlang.cn/install/unix.sh | bash -s latest
+fi
 export PATH="$HOME/.moon/bin:$PATH"
 moon version --all
 moon fmt --check
 moon check --deny-warn
+moon build
 moon test
 moon info
 git diff --exit-code -- '*.mbti'
@@ -29,11 +32,13 @@ git diff --exit-code -- '*.mbti'
 
 ```sh
 moon run cmd/main -- ingest '{"event_id":"evt-1","severity":"INFO"}'
-moon run cmd/main -- analyze '{"event_id":"evt-1","severity":"INFO"}'
+moon run cmd/main -- analyze '{"event_id":"evt-1","timestamp":"2026-03-08T09:00:00Z","source":"cli","severity":"INFO","resource":"demo-service"}'
 moon run cmd/main -- verify 'evidence bytes'
+moon run cmd/main -- verify 'evidence bytes' 9d11f9a71c12d6194481f5fa5086b0eff7df05a4a228f022f55bd890009a9d16
 ```
 
-预期：测试全部通过，接口文件无未提交变化，三个命令均输出 `exit code 0`。
+预期：测试全部通过，接口文件无未提交变化；上述四个正向命令返回 `exit code 0`，
+CI 另外用错误摘要验证 `exit code 4`。
 
 ## 发布后
 

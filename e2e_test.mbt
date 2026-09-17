@@ -1,21 +1,4 @@
 ///|
-fn e2e_event(
-  timestamp : String,
-  severity : String,
-  source : String,
-  raw_content : String,
-) -> @moonforensics.NormalizedEvent {
-  try! @moonforensics.normalize_event(
-    Some(timestamp),
-    Some(severity),
-    "fixture",
-    source,
-    None,
-    raw_content,
-  )
-}
-
-///|
 fn e2e_case(case_id : String, title : String) -> @moonforensics.Case {
   @moonforensics.Case::{
     case_id,
@@ -40,32 +23,28 @@ test "service crash fixture runs through ingest normalize timeline and correlati
   assert_eq(records.length(), 3)
   assert_eq(app_records.length(), 1)
 
-  let process_event = e2e_event(
-    "2026-01-15T10:03:14Z", "ERROR", "service-manager", "Process exited with a non-zero status",
-  )
-  let crash_event = e2e_event(
-    "2026-01-15T10:03:13Z",
-    "ERROR",
-    "app-log",
-    app_records[0].text,
-  )
-  let timeline = @moonforensics.build_timeline([process_event, crash_event])
-  assert_eq(timeline.events[0].raw_content, app_records[0].text)
-  let groups = @moonforensics.correlate_events(
-    [
-      @moonforensics.CorrelationEvent::{
-        event: crash_event,
-        resource_id: "checkout-api-01",
-        kind: @moonforensics.CorrelationKind::Crash,
-      },
-      @moonforensics.CorrelationEvent::{
-        event: process_event,
-        resource_id: "checkout-api-01",
-        kind: @moonforensics.CorrelationKind::Alert,
-      },
-    ],
-    5,
-  )
+  let process_events = @moonforensics.adapt_jsonl_records(records, @moonforensics.JsonlEventMapping::{
+    system: "fixture",
+    source_field: "source",
+    event_id_field: "event_id",
+    timestamp_field: "timestamp",
+    severity_field: "severity",
+    resource_field: Some("resource"),
+    resource_override: None,
+    kind: @moonforensics.CorrelationKind::Alert,
+    evidence_id: "process-events.jsonl",
+  })
+  let app_events = @moonforensics.adapt_plain_text_records(app_records, @moonforensics.PlainTextEventMapping::{
+    system: "fixture",
+    component: "checkout-api",
+    resource_id: Some("checkout-api-01"),
+    kind: @moonforensics.CorrelationKind::Crash,
+    evidence_id: "app.log",
+  })
+  let events = app_events + process_events
+  let timeline = @moonforensics.incident_timeline(events)
+  assert_eq(timeline.events[0].raw_content, app_log.trim_end().to_owned())
+  let groups = @moonforensics.correlate_incident_events(events, 5)
   assert_eq(groups.length(), 1)
   assert_eq(groups[0].events.length(), 2)
 }
@@ -87,38 +66,36 @@ test "performance degradation fixture joins JSONL metrics with gateway logs" {
   assert_eq(metric_records.length(), 4)
   assert_eq(gateway_records.length(), 4)
 
-  let timeline = @moonforensics.build_timeline([
-    e2e_event(
-      "2026-02-03T14:22:00Z", "WARN", "metrics-agent", "cpu=91 memory=768 p95=1450",
-    ),
-    e2e_event(
-      "2026-02-03T14:23:17Z",
-      "ERROR",
-      "edge-gateway",
-      gateway_records[1].text,
-    ),
-  ])
+  let metric_events = @moonforensics.adapt_jsonl_records(metric_records, @moonforensics.JsonlEventMapping::{
+    system: "fixture",
+    source_field: "source",
+    event_id_field: "event_id",
+    timestamp_field: "timestamp",
+    severity_field: "severity",
+    resource_field: Some("resource"),
+    resource_override: None,
+    kind: @moonforensics.CorrelationKind::Other("metric"),
+    evidence_id: "metrics.jsonl",
+  })
+  let gateway_events = @moonforensics.adapt_plain_text_records(
+    gateway_records,
+    @moonforensics.PlainTextEventMapping::{
+      system: "fixture",
+      component: "edge-gateway",
+      resource_id: Some("catalog-api-02"),
+      kind: @moonforensics.CorrelationKind::Alert,
+      evidence_id: "gateway.log",
+    },
+  )
+  let events = [metric_events[1], gateway_events[1]]
+  let timeline = @moonforensics.incident_timeline(events)
   let window = @moonforensics.query_timeline_window(
     timeline,
     try! @moonforensics.normalize_timestamp("2026-02-03T14:22:00Z"),
     try! @moonforensics.normalize_timestamp("2026-02-03T14:24:00Z"),
   )
   assert_eq(window.events.length(), 2)
-  let groups = @moonforensics.correlate_events(
-    [
-      @moonforensics.CorrelationEvent::{
-        event: timeline.events[0],
-        resource_id: "catalog-api-02",
-        kind: @moonforensics.CorrelationKind::Other("metric"),
-      },
-      @moonforensics.CorrelationEvent::{
-        event: timeline.events[1],
-        resource_id: "catalog-api-02",
-        kind: @moonforensics.CorrelationKind::Alert,
-      },
-    ],
-    120,
-  )
+  let groups = @moonforensics.correlate_incident_events(events, 120)
   assert_eq(groups.length(), 1)
   assert_eq(groups[0].events.length(), 2)
 }
@@ -138,33 +115,33 @@ test "config change fixture renders a report with a temporal hypothesis" {
   assert_eq(change_records.length(), 2)
   assert_eq(health_records.length(), 4)
 
-  let change_event = e2e_event(
-    "2026-03-08T09:00:00Z", "INFO", "config-controller", "Configuration value applied",
-  )
-  let alert_event = e2e_event(
-    "2026-03-08T09:00:40Z",
-    "ERROR",
-    "health-monitor",
-    health_records[2].text,
-  )
-  let correlated = @moonforensics.correlate_events(
-    [
-      @moonforensics.CorrelationEvent::{
-        event: change_event,
-        resource_id: "orders-api-01",
-        kind: @moonforensics.CorrelationKind::Change,
-      },
-      @moonforensics.CorrelationEvent::{
-        event: alert_event,
-        resource_id: "orders-api-01",
-        kind: @moonforensics.CorrelationKind::Alert,
-      },
-    ],
+  let change_events = @moonforensics.adapt_jsonl_records(change_records, @moonforensics.JsonlEventMapping::{
+    system: "fixture",
+    source_field: "source",
+    event_id_field: "event_id",
+    timestamp_field: "timestamp",
+    severity_field: "severity",
+    resource_field: None,
+    resource_override: Some("orders-api-01"),
+    kind: @moonforensics.CorrelationKind::Change,
+    evidence_id: "changes.jsonl",
+  })
+  let health_events = @moonforensics.adapt_plain_text_records(health_records, @moonforensics.PlainTextEventMapping::{
+    system: "fixture",
+    component: "health-monitor",
+    resource_id: Some("orders-api-01"),
+    kind: @moonforensics.CorrelationKind::Alert,
+    evidence_id: "health.log",
+  })
+  let change_event = change_events[0]
+  let alert_event = health_events[2]
+  let correlated = @moonforensics.correlate_incident_events(
+    [change_event, alert_event],
     60,
   )
   assert_eq(correlated.length(), 1)
 
-  let timeline = @moonforensics.build_timeline([change_event, alert_event])
+  let timeline = @moonforensics.incident_timeline([change_event, alert_event])
   let report = @moonforensics.ForensicReport::{
     case: e2e_case(
       "incident-config-change", "Orders API health failure after pool change",
