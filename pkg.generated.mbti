@@ -10,6 +10,8 @@ pub fn adapt_jsonl_records(Array[JsonlRecord], JsonlEventMapping) -> Array[Incid
 
 pub fn adapt_plain_text_records(Array[PlainTextRecord], PlainTextEventMapping) -> Array[IncidentEvent] raise EventAdaptError
 
+pub fn apply_jsonl_profile(Array[JsonlRecord], JsonlMappingProfile, ProfileEvidence) -> Array[CanonicalEvent] raise ProfileMapError
+
 pub fn build_evidence_manifest(Array[EvidenceDocument]) -> EvidenceManifest
 
 pub fn build_timeline(Array[NormalizedEvent]) -> Timeline
@@ -48,6 +50,8 @@ pub fn render_json_report(ForensicReport) -> String
 
 pub fn render_markdown_report(ForensicReport) -> String
 
+pub fn validate_jsonl_profile(JsonlMappingProfile) -> Unit raise ProfileMapError
+
 pub fn verify_evidence_manifest(EvidenceManifest, Array[EvidenceDocument]) -> Bool
 
 // Errors
@@ -68,6 +72,12 @@ pub(all) suberror JsonlParseError {
 
 pub(all) suberror NormalizationError {
   InvalidTimestamp(String)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror ProfileMapError {
+  InvalidProfile(field~ : String, reason~ : String)
+  MissingValue(line_number~ : Int, path~ : String)
+  InvalidValue(line_number~ : Int, path~ : String, value~ : String)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror TimelineError {
@@ -273,6 +283,10 @@ pub(all) struct IncidentGraph {
   diagnostics : Array[GraphDiagnostic]
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct JsonFieldPath {
+  segments : Array[String]
+} derive(Eq, @debug.Debug)
+
 pub(all) struct JsonlEventMapping {
   system : String
   source_field : String
@@ -283,6 +297,22 @@ pub(all) struct JsonlEventMapping {
   resource_override : String?
   kind : CorrelationKind
   evidence_id : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct JsonlMappingProfile {
+  id : String
+  version : String
+  source : SourceMappingProfile
+  event_id : ProfileStringValue
+  event_time : JsonFieldPath?
+  observed_time : JsonFieldPath?
+  severity : JsonFieldPath?
+  resource : ResourceMappingProfile?
+  category : EventCategory
+  event_type : ProfileStringValue
+  action : ProfileStringValue?
+  outcome : EventOutcome
+  body_path : JsonFieldPath?
 } derive(Eq, @debug.Debug)
 
 pub(all) struct JsonlRecord {
@@ -322,6 +352,17 @@ pub(all) struct PlainTextRecord {
   text : String
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct ProfileEvidence {
+  evidence_id : String
+  path : String
+  sha256 : String?
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProfileStringValue {
+  Constant(String)
+  JsonString(JsonFieldPath)
+} derive(Eq, @debug.Debug)
+
 pub(all) enum RelationStatus {
   Observed
   Hypothesis
@@ -336,6 +377,11 @@ pub(all) enum RelationType {
   Custom(String)
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct ResourceAlias {
+  source_id : String
+  canonical_id : String
+} derive(Eq, @debug.Debug)
+
 pub(all) enum ResourceKind {
   Service
   Instance
@@ -345,6 +391,14 @@ pub(all) enum ResourceKind {
   Trace
   Custom(String)
 } derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct ResourceMappingProfile {
+  kind : ResourceKind
+  id : ProfileStringValue
+  prefix : String
+  aliases : Array[ResourceAlias]
+  attributes_path : JsonFieldPath?
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ResourceRef {
   kind : ResourceKind
@@ -361,6 +415,13 @@ pub(all) enum Severity {
   Fatal
   Unknown(String)
 } derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct SourceMappingProfile {
+  system : ProfileStringValue
+  component : ProfileStringValue
+  host : ProfileStringValue?
+  instrumentation_scope : ProfileStringValue?
+} derive(Eq, @debug.Debug)
 
 pub(all) struct TelemetrySource {
   system : String

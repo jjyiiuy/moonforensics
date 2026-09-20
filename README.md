@@ -11,7 +11,8 @@ MoonForensics 是一个 MoonBit 应用服务离线故障复盘库，以发布或
 当前交付为分析库、静态演示数据和最小 CLI。JSONL 与固定格式文本已通过显式映射
 适配为统一事件，CLI `analyze` 已贯通适配、时间线和候选关联；它仍不读取主机文件，
 也不声称能自动理解任意供应商日志。当前模型层已经提供 `CanonicalEvent`、资源实体、
-事件分类、证据来源和关系边类型；Profile、处理器和声明式规则将在此模型上增量实现。
+事件分类、证据来源和关系边类型；版本化 JSONL Profile 已能复用嵌套字段与资源身份映射，
+处理器和声明式规则将在此模型上增量实现。
 
 ## 统一抽象与关联前提
 
@@ -36,7 +37,8 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 
 - `CanonicalEvent` 分开保存事件时间、观测时间、结构化来源、资源实体、类别、事件类型、
   动作、结果、级别、正文、属性和 `EventProvenance`。
-- `Profile` 描述字段路径、类型转换、资源模板、分类和别名；输入格式变化不会污染分析核心。
+- `Profile` 用版本化配置描述嵌套对象路径、常量/可选值、事件分类、资源前缀和精确别名；
+  Profile 身份与版本写入证据溯源，输入格式变化不会污染分析核心。
 - `Processor` 负责时间/级别标准化、资源别名、过滤和证据摘要，所有处理保持确定性。
 - `CorrelationRule` 计划支持有序时序、事件计数、属性匹配和分组键；规则只产生可解释关系，
   不把时间相关性冒充根因。
@@ -66,6 +68,8 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 
 - **案件与证据模型**：案件、证据文件、来源、采集时间及键值元数据。
 - **离线导入**：解析 JSONL 事件流和固定格式的纯文本日志，保留原文及记录顺序。
+- **可复用映射 Profile**：以版本化 Profile 将不同 JSONL 对象映射为统一事件，支持嵌套字段、
+  可选值、资源前缀和精确别名，并对缺失或类型错误给出证据行号。
 - **统一事件信息**：标准化 RFC 3339 时间、严重级别和来源标识，为比较及排序提供稳定字段。
 - **证据完整性**：为证据内容生成 SHA-256 摘要、字节大小和来源清单；可用原始内容复核清单。
 - **确定性时间线**：按时间稳定排序，按来源过滤，并查询包含边界的 UTC 时间窗口。
@@ -86,6 +90,7 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 ├── integrity.mbt               # 证据摘要及清单校验
 ├── ingest_jsonl.mbt            # JSONL 导入
 ├── ingest_plain_text.mbt       # 纯文本日志导入
+├── mapping_profile.mbt         # 版本化 JSONL 映射 Profile
 ├── normalize.mbt               # 时间、级别和来源标准化
 ├── report.mbt                  # Markdown 与 JSON 报告
 ├── rules.mbt                   # 诊断规则和证据引用
