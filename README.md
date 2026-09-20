@@ -12,6 +12,7 @@ MoonForensics 是一个 MoonBit 应用服务离线故障复盘库，以发布或
 适配为统一事件，CLI `analyze` 已贯通适配、时间线和候选关联；它仍不读取主机文件，
 也不声称能自动理解任意供应商日志。改进契约、三场景验收与边界见
 [`docs/reapplication-design.md`](docs/reapplication-design.md)。
+下一阶段的关系图公共设计见 [`docs/incident-graph-architecture.md`](docs/incident-graph-architecture.md)。
 
 ## 统一抽象与关联前提
 
@@ -45,6 +46,7 @@ MoonForensics 是一个 MoonBit 应用服务离线故障复盘库，以发布或
 ├── cmd/main/                   # 最小 CLI，贯通 JSONL 分析与摘要校验
 ├── docs/project-brief.md       # 项目范围和验收契约
 ├── docs/reapplication-design.md # 复审改进设计与适用边界
+├── docs/incident-graph-architecture.md # 可解释事件关系图设计
 ├── samples/incidents/          # 固定时间的脱敏故障夹具
 ├── correlation.mbt             # 跨来源事件关联
 ├── integrity.mbt               # 证据摘要及清单校验
