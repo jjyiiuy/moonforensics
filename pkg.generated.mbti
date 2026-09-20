@@ -14,11 +14,15 @@ pub fn build_evidence_manifest(Array[EvidenceDocument]) -> EvidenceManifest
 
 pub fn build_timeline(Array[NormalizedEvent]) -> Timeline
 
+pub fn canonicalize_incident_event(IncidentEvent, TelemetrySource, ResourceRef?, EventCategory, String, String?, EventOutcome, NormalizedTimestamp?, EventProvenance) -> CanonicalEvent
+
 pub fn compare_timestamps(NormalizedTimestamp, NormalizedTimestamp) -> Int
 
 pub fn correlate_events(Array[CorrelationEvent], Int) -> Array[CorrelationGroup] raise CorrelationError
 
 pub fn correlate_incident_events(Array[IncidentEvent], Int) -> Array[CorrelationGroup] raise CorrelationError
+
+pub fn empty_incident_graph() -> IncidentGraph
 
 pub fn evaluate_diagnostic_rules(Timeline, Array[DiagnosticRule]) -> DiagnosticReport
 
@@ -71,6 +75,24 @@ pub(all) suberror TimelineError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) struct CanonicalEvent {
+  event_id : String
+  event_time : NormalizedTimestamp?
+  observed_time : NormalizedTimestamp?
+  source : TelemetrySource
+  resource : ResourceRef?
+  category : EventCategory
+  event_type : String
+  action : String?
+  outcome : EventOutcome
+  severity : Severity?
+  body : Json
+  raw_content : String
+  attributes : Json
+  provenance : EventProvenance
+} derive(Eq, ToJson, @debug.Debug)
+pub fn CanonicalEvent::to_normalized_event(Self) -> NormalizedEvent
+
 pub(all) struct Case {
   case_id : String
   title : String
@@ -121,9 +143,35 @@ pub(all) struct DiagnosticRule {
   text_contains : String?
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) enum EventCategory {
+  Change
+  Availability
+  Performance
+  Process
+  Other(String)
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct EventEvidence {
   evidence_id : String
   line_number : Int
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum EventOutcome {
+  Success
+  Failure
+  Unknown
+  Other(String)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct EventProvenance {
+  evidence_id : String
+  path : String
+  line_number : Int?
+  byte_offset : Int?
+  byte_length : Int?
+  sha256 : String?
+  profile_id : String
+  profile_version : String
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct EvidenceDocument {
@@ -170,6 +218,19 @@ pub(all) struct EvidenceReference {
   raw_content : String
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct EvidenceRelation {
+  relation_id : String
+  relation_type : RelationType
+  from_event_id : String
+  to_event_id : String
+  rule_id : String?
+  resource_key : ResourceRef?
+  delta_seconds : Int?
+  evidence_refs : Array[EventProvenance]
+  explanation : String
+  status : RelationStatus
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct EvidenceSource {
   system : String
   component : String
@@ -190,6 +251,13 @@ pub(all) struct ForensicReport {
   limitations : Array[String]
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct GraphDiagnostic {
+  code : String
+  message : String
+  event_id : String?
+  provenance : EventProvenance?
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct IncidentEvent {
   event_id : String
   normalized : NormalizedEvent
@@ -197,6 +265,12 @@ pub(all) struct IncidentEvent {
   kind : CorrelationKind
   attributes : Json
   evidence : EventEvidence
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct IncidentGraph {
+  nodes : Array[CanonicalEvent]
+  edges : Array[EvidenceRelation]
+  diagnostics : Array[GraphDiagnostic]
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct JsonlEventMapping {
@@ -248,6 +322,36 @@ pub(all) struct PlainTextRecord {
   text : String
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) enum RelationStatus {
+  Observed
+  Hypothesis
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum RelationType {
+  SameResource
+  TemporalBefore
+  MatchedRule
+  AliasOf
+  AttributeMatch
+  Custom(String)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum ResourceKind {
+  Service
+  Instance
+  Host
+  Container
+  Config
+  Trace
+  Custom(String)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct ResourceRef {
+  kind : ResourceKind
+  id : String
+  attributes : Json
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) enum Severity {
   Trace
   Debug
@@ -256,6 +360,13 @@ pub(all) enum Severity {
   Error
   Fatal
   Unknown(String)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct TelemetrySource {
+  system : String
+  component : String
+  host : String?
+  instrumentation_scope : String?
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct Timeline {

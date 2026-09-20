@@ -10,9 +10,8 @@ MoonForensics 是一个 MoonBit 应用服务离线故障复盘库，以发布或
 
 当前交付为分析库、静态演示数据和最小 CLI。JSONL 与固定格式文本已通过显式映射
 适配为统一事件，CLI `analyze` 已贯通适配、时间线和候选关联；它仍不读取主机文件，
-也不声称能自动理解任意供应商日志。改进契约、三场景验收与边界见
-[`docs/reapplication-design.md`](docs/reapplication-design.md)。
-下一阶段的关系图公共设计见 [`docs/incident-graph-architecture.md`](docs/incident-graph-architecture.md)。
+也不声称能自动理解任意供应商日志。当前模型层已经提供 `CanonicalEvent`、资源实体、
+事件分类、证据来源和关系边类型；Profile、处理器和声明式规则将在此模型上增量实现。
 
 ## 统一抽象与关联前提
 
@@ -26,6 +25,42 @@ MoonForensics 是一个 MoonBit 应用服务离线故障复盘库，以发布或
 
 适配结果包含稳定事件 ID、证据 ID/行号和结构化属性，隔离供应商格式差异。
 通用性来自“适配层处理输入差异，分析核心复用事件契约”，而不是自动理解所有格式。
+
+## 可解释事件关系图架构
+
+项目的独立复用内核是可解释事件关系图，而不是某一种日志格式的解析器：
+
+```text
+EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule → IncidentGraph
+```
+
+- `CanonicalEvent` 分开保存事件时间、观测时间、结构化来源、资源实体、类别、事件类型、
+  动作、结果、级别、正文、属性和 `EventProvenance`。
+- `Profile` 描述字段路径、类型转换、资源模板、分类和别名；输入格式变化不会污染分析核心。
+- `Processor` 负责时间/级别标准化、资源别名、过滤和证据摘要，所有处理保持确定性。
+- `CorrelationRule` 计划支持有序时序、事件计数、属性匹配和分组键；规则只产生可解释关系，
+  不把时间相关性冒充根因。
+- `IncidentGraph` 保存事件节点、关系边和诊断。边包含规则 ID、资源键、时间差、证据位置、
+  匹配原因和 `Observed/Hypothesis` 状态；时间线、发现和报告均从图派生。
+
+当前 `correlate_events` 和 `DiagnosticRule` 仍作为兼容视图，下一阶段会映射到声明式规则。
+调用方只应选择 Profile 和规则，不应逐条手工构造关联事件。
+
+设计参考公开标准的分层思想，不复制实现代码：
+[OpenTelemetry 日志模型](https://opentelemetry.io/docs/specs/otel/logs/data-model/)、
+[Collector 组件流水线](https://opentelemetry.io/docs/collector/components/)、
+[Sigma 关联规则](https://sigmahq.io/sigma-specification/specification/sigma-correlation-rules-specification.html)、
+[Plaso 解析器插件](https://plaso.readthedocs.io/en/latest/sources/developer/How-to-write-a-parser.html)
+和 [ECS 事件分类](https://www.elastic.co/docs/reference/ecs/ecs-allowed-values-event-kind)。
+它们分别对应本项目的统一事件、处理器、规则、适配器和分类模型。
+
+## 三个完整使用场景
+
+1. **配置变更后的健康故障**：配置控制器记录连接池变更，健康检查记录超时；资源别名把配置项和服务映射到同一分析范围，输出“变更→失败→恢复”的有序关系和证据行号。
+2. **应用错误与进程退出**：应用日志记录错误，服务管理器记录非零退出和重启；通过实例资源与 `process.exit` 事件类型关联，保留退出码但不直接断言 OOM 根因。
+3. **指标异常与网关超时**：指标记录 CPU、内存和 P95，网关记录请求超时；通过实例和请求属性匹配生成候选关系，展示继续调查的时间段，不把指标升高认定为原因。
+
+三类场景均使用仓库内固定时间的虚构夹具，报告需区分直接观测和待验证假设。
 
 ## 能力概览
 
@@ -44,10 +79,9 @@ MoonForensics 是一个 MoonBit 应用服务离线故障复盘库，以发布或
 ```text
 .
 ├── cmd/main/                   # 最小 CLI，贯通 JSONL 分析与摘要校验
-├── docs/project-brief.md       # 项目范围和验收契约
-├── docs/reapplication-design.md # 复审改进设计与适用边界
-├── docs/incident-graph-architecture.md # 可解释事件关系图设计
 ├── samples/incidents/          # 固定时间的脱敏故障夹具
+├── canonical_event.mbt         # 统一事件、资源、证据来源和关系边模型
+├── event_adapter.mbt           # JSONL/文本到事件的显式适配
 ├── correlation.mbt             # 跨来源事件关联
 ├── integrity.mbt               # 证据摘要及清单校验
 ├── ingest_jsonl.mbt            # JSONL 导入
@@ -73,12 +107,14 @@ moon test
 
 测试覆盖模型、导入、标准化、完整性、时间线、规则、关联和报告黄金快照。夹具
 位于 `samples/incidents/`，其固定时间、字段契约和场景说明见
-[`samples/README.md`](samples/README.md)。项目目标和验收约束见
-[`docs/project-brief.md`](docs/project-brief.md)。
+[`samples/README.md`](samples/README.md)。
 
-发布前检查项见 [`docs/release-checklist.md`](docs/release-checklist.md)；GitHub Actions
-会在全新 Ubuntu 环境中安装 MoonBit 最新稳定工具链并记录完整版本，执行格式、类型、
-测试、接口文件和文档 CLI 示例检查。
+发布前至少执行 `moon info` 并检查生成的 `.mbti` 无意外变化；GitHub Actions 会在全新
+Ubuntu 环境中安装 MoonBit 最新稳定工具链并记录完整版本，执行格式、类型、构建、测试、
+接口文件和文档 CLI 示例检查。
+
+发布检查还应确认 `git status --short` 为空、`moon.mod` 的模块名与 GitHub 账号一致、
+`LICENSE` 和 `samples/README.md` 在仓库中存在，并从干净检出重新运行上述命令。
 
 ## CLI 工作流
 
