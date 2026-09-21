@@ -10,6 +10,8 @@ pub fn adapt_jsonl_records(Array[JsonlRecord], JsonlEventMapping) -> Array[Incid
 
 pub fn adapt_plain_text_records(Array[PlainTextRecord], PlainTextEventMapping) -> Array[IncidentEvent] raise EventAdaptError
 
+pub fn analyze_with_pack(Array[CanonicalEvent], AnalysisPack) -> IncidentGraph raise CorrelationRuleError
+
 pub fn apply_jsonl_profile(Array[JsonlRecord], JsonlMappingProfile, ProfileEvidence) -> Array[CanonicalEvent] raise ProfileMapError
 
 pub fn build_evidence_manifest(Array[EvidenceDocument]) -> EvidenceManifest
@@ -18,13 +20,19 @@ pub fn build_incident_graph(Array[CanonicalEvent], Array[CorrelationRule]) -> In
 
 pub fn build_timeline(Array[NormalizedEvent]) -> Timeline
 
+pub fn built_in_analysis_packs() -> Array[AnalysisPack]
+
 pub fn canonicalize_incident_event(IncidentEvent, TelemetrySource, ResourceRef?, EventCategory, String, String?, EventOutcome, NormalizedTimestamp?, EventProvenance) -> CanonicalEvent
 
 pub fn compare_timestamps(NormalizedTimestamp, NormalizedTimestamp) -> Int
 
+pub fn config_analysis_pack() -> AnalysisPack
+
 pub fn correlate_events(Array[CorrelationEvent], Int) -> Array[CorrelationGroup] raise CorrelationError
 
 pub fn correlate_incident_events(Array[IncidentEvent], Int) -> Array[CorrelationGroup] raise CorrelationError
+
+pub fn crash_analysis_pack() -> AnalysisPack
 
 pub fn empty_incident_graph() -> IncidentGraph
 
@@ -35,6 +43,8 @@ pub fn evaluate_diagnostic_rules(Timeline, Array[DiagnosticRule]) -> DiagnosticR
 pub fn filter_timeline_by_source(Timeline, String) -> Timeline
 
 pub fn incident_timeline(Array[IncidentEvent]) -> Timeline
+
+pub fn latency_analysis_pack() -> AnalysisPack
 
 pub fn normalize_event(String?, String?, String, String, String?, String) -> NormalizedEvent raise NormalizationError
 
@@ -55,6 +65,8 @@ pub fn query_timeline_window(Timeline, NormalizedTimestamp, NormalizedTimestamp)
 pub fn render_json_report(ForensicReport) -> String
 
 pub fn render_markdown_report(ForensicReport) -> String
+
+pub fn validate_analysis_pack(AnalysisPack) -> Unit raise CorrelationRuleError
 
 pub fn validate_correlation_rules(Array[CorrelationRule]) -> Unit raise CorrelationRuleError
 
@@ -102,6 +114,13 @@ pub(all) suberror TimelineError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) struct AnalysisPack {
+  pack_id : String
+  title : String
+  description : String
+  rules : Array[CorrelationRule]
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct CanonicalEvent {
   event_id : String
   event_time : NormalizedTimestamp?

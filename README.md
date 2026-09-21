@@ -43,6 +43,8 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
   过滤和时间窗口筛选；所有处理保持确定性且不修改原始内容与证据溯源。
 - `CorrelationRule` 已支持按类别、事件类型、动作、结果、级别、来源和资源类型声明两侧模式，
   用有序时间窗口及同资源约束生成可解释关系；规则只产生关系假设，不把时间相关性冒充根因。
+- `AnalysisPack` 将一组经过验证的规则和适用说明封装为可复用能力，内置配置变更、进程崩溃、
+  请求延迟三类分析包；调用方可直接选择分析包，也可检查其规则和元数据后再运行。
 - `IncidentGraph` 由构建器按事件时间稳定排序节点，并保存关系边和数据质量诊断。边包含规则
   ID、资源键、时间差、证据位置、匹配原因和 `Observed/Hypothesis` 状态；时间线、发现和报告
   均从图派生。
@@ -76,6 +78,8 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 - **证据完整性**：为证据内容生成 SHA-256 摘要、字节大小和来源清单；可用原始内容复核清单。
 - **确定性时间线**：按时间稳定排序，按来源过滤，并查询包含边界的 UTC 时间窗口。
 - **诊断与关联**：规则结果同时携带证据引用和置信说明；关联相同资源、限定窗口内、来自不同来源的事件。
+- **可复用分析包**：提供 `config`、`crash`、`latency` 三套内置包，覆盖配置变更后的故障、
+  进程崩溃后的健康变化，以及请求延迟后的超时/错误；每套包都公开稳定 ID、说明和规则窗口。
 - **可读报告**：输出 Markdown 摘要、时间线、发现、证据索引和限制说明，也可输出完整 JSON 数据。
 
 关联只表达资源和时间上的关系，不等同于因果证明。报告会保留这一边界，供调查人员结合原始证据复核。
@@ -96,6 +100,7 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 ├── processor.mbt               # CanonicalEvent 转换与筛选管线
 ├── correlation_rule.mbt        # 声明式时序关联规则与事件图边
 ├── graph.mbt                   # 稳定节点、关系边和可解释诊断的图构建器
+├── packs.mbt                   # 配置、崩溃和延迟分析包
 ├── normalize.mbt               # 时间、级别和来源标准化
 ├── report.mbt                  # Markdown 与 JSON 报告
 ├── rules.mbt                   # 诊断规则和证据引用
