@@ -143,6 +143,19 @@ moon run cmd/main -- verify 'evidence bytes'
 moon run cmd/main -- verify 'evidence bytes' 9d11f9a71c12d6194481f5fa5086b0eff7df05a4a228f022f55bd890009a9d16
 ```
 
+`case` 命令使用版本化 Profile 将 JSONL 映射为 `CanonicalEvent`，再构建案件时间线和可解释关系图：
+
+```sh
+moon run cmd/main -- case '<jsonl-source>'
+moon run cmd/main -- case '<jsonl-source>' auto-v1 config
+moon run cmd/main -- analyze '<jsonl-source>' auto-v1 crash
+```
+
+内置单流 Profile 包括 `flat-v1`、`config-v1`、`crash-v1`、`health-v1` 和 `latency-v1`。`auto-v1`
+会按每条记录的 `profile` 字段选择这些 Profile，适合在同一案件中组合不同来源；第二个可选参数
+选择 `none`、`config`、`crash` 或 `latency` 分析包。映射失败会返回退出码 3，未知 Profile/分析包
+返回退出码 2，成功输出 Markdown 案件报告、证据清单和关系图摘要。
+
 成功输出 `exit code 0`。参数或命令错误为 `exit code 2`，JSONL/输入错误为
 `exit code 3`，证据校验失败为 `exit code 4`；失败路径同时返回非零进程状态。
 当前入口不直接读取主机文件，调用方可先读取文件内容再将其作为参数传入。
