@@ -8,11 +8,9 @@ MoonForensics 是一个 MoonBit 应用服务离线故障复盘库，以发布或
 离线流程适合生产访问受限、材料需脱敏交接，以及同一批证据需要重复复核的情况。
 项目价值是固定分析步骤与证据出处，不是未经测量的排障提速或生产采用率。
 
-当前交付为分析库、静态演示数据和最小 CLI。JSONL 与固定格式文本已通过显式映射
-适配为统一事件，CLI `analyze` 已贯通适配、时间线和候选关联；它仍不读取主机文件，
-也不声称能自动理解任意供应商日志。当前模型层已经提供 `CanonicalEvent`、资源实体、
-事件分类、证据来源和关系边类型；版本化 JSONL Profile 与确定性的 Processor 管线已能复用
-字段映射、规范化、资源别名和筛选步骤，声明式规则将在此模型上增量实现。
+当前交付包括分析库、静态夹具和最小 CLI。JSONL 与固定格式文本经过显式映射后进入
+`CanonicalEvent`；Profile、Processor、声明式规则和三套 `AnalysisPack` 已可复用。
+CLI 只接收调用方提供的内容，不读取主机文件，也不声称能自动理解任意供应商日志。
 
 ## 统一抽象与关联前提
 
@@ -52,37 +50,19 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 当前 `correlate_events` 和 `DiagnosticRule` 仍作为兼容视图；声明式规则通过
 `build_incident_graph` 生成带证据的关系图。调用方只应选择 Profile 和规则，不应逐条手工构造关联事件。
 
-## 独立库复用示例
+## 独立库复用
 
-MoonForensics 的核心包不依赖 `cmd/main`，调用方可以在自己的 MoonBit 服务、批处理程序或测试包中直接复用。
-接入时只需要为每种输入格式声明一个 `JsonlMappingProfile`；Profile 负责字段路径、资源身份和事件类别，
-分析包只接收已经规范化的 `CanonicalEvent`，因此不会把某个供应商的字段名带入关联规则。
+MoonForensics 的核心包不依赖 `cmd/main`。完整的跨 Schema 用例在
+[`cross_schema_test.mbt`](cross_schema_test.mbt)：`config-controller` 的 `change_id`、
+`applied_at`、`service` 字段和 `health-monitor` 的 `check_id`、`observed_at`、
+`target.service` 字段分别由两个 `JsonlMappingProfile` 映射，再进入同一个
+`config_analysis_pack()`。测试检查两个来源能在同一资源和时间窗口内形成一条关系边，
+并保留各自的 Profile 版本与证据来源。
 
-下面的调用顺序展示了两个不同 JSONL Schema 如何进入同一案件。`config_profile` 和 `health_profile`
-分别由调用方按各自字段结构定义，`config_evidence` 和 `health_evidence` 保存来源与 Profile 版本：
-
-```mbt
-import { "jjyiiuy/moonforensics" }
-
-let config_records = try! @moonforensics.parse_jsonl(config_jsonl)
-let health_records = try! @moonforensics.parse_jsonl(health_jsonl)
-let config_events = try! @moonforensics.apply_jsonl_profile(
-  config_records, config_profile, config_evidence,
-)
-let health_events = try! @moonforensics.apply_jsonl_profile(
-  health_records, health_profile, health_evidence,
-)
-let graph = try! @moonforensics.analyze_with_pack(
-  config_events + health_events,
-  @moonforensics.config_analysis_pack(),
-)
-assert_eq(graph.edges.length(), 1)
-```
-
-这个流程只依赖库 API，不读取主机文件，也不会猜测缺失字段。调用方可以继续从 `graph.nodes` 构建自己的
-时间线和报告，或直接使用 `render_markdown_report` / `render_json_report` 输出现有格式。若输入来自新的
-日志系统，只新增对应 Profile 和适配测试即可；规则、证据引用、资源同一性和时间窗逻辑无需复制。
-同一 Profile 也可以重复应用于多批证据，`EventProvenance` 会为每批结果保留独立的证据 ID、路径和版本。
+调用方只需提供输入记录、Profile 和证据元数据；库不会读取主机文件，也不会猜测缺失字段。
+新的日志系统只需增加 Profile 及适配测试，规则、资源同一性和时间窗逻辑可以继续复用。
+报告 API（`render_markdown_report` / `render_json_report`）可直接消费分析图，
+`EventProvenance` 则让同一 Profile 在多批证据上的来源保持可区分。
 
 设计参考公开标准的分层思想，不复制实现代码：
 [OpenTelemetry 日志模型](https://opentelemetry.io/docs/specs/otel/logs/data-model/)、
@@ -94,11 +74,21 @@ assert_eq(graph.edges.length(), 1)
 
 ## 三个完整使用场景
 
-1. **配置变更后的健康故障**：配置控制器记录连接池变更，健康检查记录超时；资源别名把配置项和服务映射到同一分析范围，输出“变更→失败→恢复”的有序关系和证据行号。
-2. **应用错误与进程退出**：应用日志记录错误，服务管理器记录非零退出和重启；通过实例资源与 `process.exit` 事件类型关联，保留退出码但不直接断言 OOM 根因。
-3. **指标异常与网关超时**：指标记录 CPU、内存和 P95，网关记录请求超时；通过实例和请求属性匹配生成候选关系，展示继续调查的时间段，不把指标升高认定为原因。
+仓库中的三个场景对应 `samples/incidents/` 下的固定文件，测试入口是
+[`e2e_test.mbt`](e2e_test.mbt) 和 [`cross_schema_test.mbt`](cross_schema_test.mbt)：
 
-三类场景均使用仓库内固定时间的虚构夹具，报告需区分直接观测和待验证假设。
+1. **配置变更后的健康故障**：`config-change/changes.jsonl` 中的 `config-001`
+   在 `09:00:00Z` 将连接池从 40 调为 4，`health.log` 在 `09:00:40Z` 记录失败，
+   `config-002` 回滚后于 `09:02:30Z` 恢复。输出应保留“变更—失败—恢复”的顺序，
+   但只把它标成候选关系。
+2. **应用错误与进程退出**：`service-crash/app.log` 与 `process-events.jsonl`
+   记录同一 Checkout API 实例的错误、非零退出和重启。退出码和进程 ID 会进入证据引用，
+   不把日志中的错误直接解释为 OOM。
+3. **指标异常与网关超时**：`performance-degradation/metrics.jsonl` 与 `gateway.log`
+   同时提供实例指标和请求超时记录。时间线展示异常窗口，关联边说明匹配的实例与请求，
+   不把某一项指标升高写成故障原因。
+
+这些文件中的时间、ID 和主机名都是固定的虚构值，便于重复运行测试和人工复核。
 
 ## 能力概览
 
@@ -165,8 +155,8 @@ Ubuntu 环境中安装 MoonBit 最新稳定工具链并记录完整版本，执�
 
 ## CLI 工作流
 
-命令行入口接受内联证据内容，便于离线复现和脚本调用。三个命令分别负责导入
-JSONL、输出最小分析摘要，以及计算证据大小和 SHA-256 清单：
+命令行入口接受内联证据内容，便于离线复现和脚本调用。`ingest`、`analyze`、`case`、
+`verify` 分别覆盖导入、分析、案件级处理和完整性校验；它们都不会隐式读取当前目录文件。
 
 ```sh
 moon run cmd/main -- ingest '{"event_id":"evt-1","severity":"INFO"}'

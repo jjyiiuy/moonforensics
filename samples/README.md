@@ -1,70 +1,32 @@
 # 可复现故障夹具
 
-本目录保存 MoonForensics 后续导入、时间线和诊断测试共用的静态输入。所有主机名、
-服务名、进程号和指标均为虚构数据，不对应真实系统或个人。
+`samples/incidents/` 保存仓库随附的三组固定输入。它们用于人工查看和回归测试，主机名、
+服务名、进程号和指标值均为虚构数据；时间、事件 ID 和资源名在每次运行中保持不变。
 
-## 复现约束
+## 场景与可观察结果
 
-- 所有时间均为固定的 RFC 3339 UTC 时间，不使用运行时当前时间。
-- 文件使用 UTF-8 文本；JSONL 每行都是一个完整 JSON 对象。
-- 同一场景内的事件 ID、来源名和资源名保持稳定。
-- 夹具只描述观察事实，不把时间相关性写成已确认根因。
-- 场景文件作为复现材料随仓库固定；当前跨后端单元测试使用与文件一致的内联片段，
-  避免把主机文件 I/O 引入库核心，案件级文件读取仍是后续 CLI 工作流。
+| 场景 | 输入文件 | 预期观察 |
+| --- | --- | --- |
+| `config-change` | `changes.jsonl`、`health.log` | `config-001` 在 `09:00:00Z` 将连接池从 40 调为 4；`09:00:40Z` 健康检查失败，`config-002` 回滚后 `09:02:30Z` 恢复。 |
+| `service-crash` | `app.log`、`process-events.jsonl` | `fatal_allocation_failure` 后，`proc-001` 记录退出码 137，随后 `proc-002`、`proc-003` 记录重启和新进程。 |
+| `performance-degradation` | `metrics.jsonl`、`gateway.log` | `metric-002` 的 P95 从 180ms 升到 1450ms，随后网关记录超时，`14:27:05Z` 恢复。 |
 
-## 案件元数据
+这里的“预期观察”只描述文件中直接出现的事实。分析图可以生成候选关系，但不会把时间先后写成根因结论。
 
-每个场景的 `case.json` 包含：
+## 文件约定
 
-| 字段 | 含义 |
-| --- | --- |
-| `case_id` | 稳定、唯一的夹具案件标识。 |
-| `title` | 供人阅读的案件名称。 |
-| `timezone` | 场景时间基准，当前固定为 `UTC`。 |
-| `collected_at` | 固定的证据收集完成时间。 |
-| `evidence` | 证据 ID、相对路径、格式、来源和说明。 |
+- `case.json` 提供 `case_id`、标题、固定 UTC 的 `collected_at` 和证据文件索引。`evidence` 是目录索引，不是完整性清单。
+- JSONL 每行是一个完整对象，使用 `event_id`、`timestamp`、`source`、`severity`、`kind`、`resource`、`message` 和 `attributes`。
+- 纯文本日志使用 `<timestamp> <severity> <message>` 布局；消息中的 `key=value` 保留在原始文本中。
+- 缺失字段不会被夹具说明或适配器自动猜测。旧版直接导入测试使用 `JsonlEventMapping`，当前跨 Schema 测试使用 `JsonlMappingProfile` 生成 `CanonicalEvent`。
 
-这里的 `evidence` 只是夹具索引，不是完整性清单，不包含摘要或校验结论。
+## 如何复核
 
-## JSONL 事件字段
+根目录的 `e2e_test.mbt` 和 `cross_schema_test.mbt` 使用与这里一致的固定数据；
+测试刻意内联输入，避免核心库引入主机文件 I/O，而这些文件保留为人可读的复核材料。
+在仓库根目录运行 `moon test` 可执行完整测试套件。
 
-| 字段 | 含义 |
-| --- | --- |
-| `event_id` | 场景内稳定且唯一的事件标识。 |
-| `timestamp` | RFC 3339 UTC 时间。 |
-| `source` | 产生记录的系统或组件。 |
-| `severity` | `INFO`、`WARN` 或 `ERROR`。 |
-| `kind` | 记录类别，例如 `process`、`metric` 或 `config`。 |
-| `resource` | 事件涉及的服务、实例或配置资源。 |
-| `message` | 不包含推断的事实描述。 |
-| `attributes` | 与记录类别相关的结构化附加字段。 |
+## 边界
 
-此字段集合由调用方通过 `JsonlEventMapping` 显式映射到公共 `IncidentEvent` API；
-字段未声明时不会自动猜测。
-
-## 纯文本日志格式
-
-每行采用以下固定布局：
-
-```text
-<timestamp> <severity> <message>
-```
-
-消息中的 `key=value` 片段目前只是原始文本的一部分。
-
-## 场景目录
-
-### `service-crash`
-
-包含应用错误日志、非零退出和服务重启记录。可直接观察到致命日志发生后进程退出，
-随后服务管理器启动了新进程；夹具不声明退出的最终根因。
-
-### `performance-degradation`
-
-包含资源与延迟指标，以及网关超时日志。可直接观察到 CPU、内存和 P95 延迟上升
-期间出现请求超时；夹具不声明某一项指标单独导致故障。
-
-### `config-change`
-
-包含连接池配置变更、健康检查失败、回滚和恢复记录。可直接观察到失败发生在变更
-之后且恢复发生在回滚之后；二者是否构成因果关系仍是待验证假设。
+夹具不代表真实生产数据，也不包含采集凭据。修改输入后，应重新执行完整性校验并检查证据引用；
+报告中的来源、时间窗口和资源关系都应回到这些原始行复核。
