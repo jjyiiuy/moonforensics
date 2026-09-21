@@ -52,6 +52,38 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 当前 `correlate_events` 和 `DiagnosticRule` 仍作为兼容视图；声明式规则通过
 `build_incident_graph` 生成带证据的关系图。调用方只应选择 Profile 和规则，不应逐条手工构造关联事件。
 
+## 独立库复用示例
+
+MoonForensics 的核心包不依赖 `cmd/main`，调用方可以在自己的 MoonBit 服务、批处理程序或测试包中直接复用。
+接入时只需要为每种输入格式声明一个 `JsonlMappingProfile`；Profile 负责字段路径、资源身份和事件类别，
+分析包只接收已经规范化的 `CanonicalEvent`，因此不会把某个供应商的字段名带入关联规则。
+
+下面的调用顺序展示了两个不同 JSONL Schema 如何进入同一案件。`config_profile` 和 `health_profile`
+分别由调用方按各自字段结构定义，`config_evidence` 和 `health_evidence` 保存来源与 Profile 版本：
+
+```mbt
+import { "jjyiiuy/moonforensics" }
+
+let config_records = try! @moonforensics.parse_jsonl(config_jsonl)
+let health_records = try! @moonforensics.parse_jsonl(health_jsonl)
+let config_events = try! @moonforensics.apply_jsonl_profile(
+  config_records, config_profile, config_evidence,
+)
+let health_events = try! @moonforensics.apply_jsonl_profile(
+  health_records, health_profile, health_evidence,
+)
+let graph = try! @moonforensics.analyze_with_pack(
+  config_events + health_events,
+  @moonforensics.config_analysis_pack(),
+)
+assert_eq(graph.edges.length(), 1)
+```
+
+这个流程只依赖库 API，不读取主机文件，也不会猜测缺失字段。调用方可以继续从 `graph.nodes` 构建自己的
+时间线和报告，或直接使用 `render_markdown_report` / `render_json_report` 输出现有格式。若输入来自新的
+日志系统，只新增对应 Profile 和适配测试即可；规则、证据引用、资源同一性和时间窗逻辑无需复制。
+同一 Profile 也可以重复应用于多批证据，`EventProvenance` 会为每批结果保留独立的证据 ID、路径和版本。
+
 设计参考公开标准的分层思想，不复制实现代码：
 [OpenTelemetry 日志模型](https://opentelemetry.io/docs/specs/otel/logs/data-model/)、
 [Collector 组件流水线](https://opentelemetry.io/docs/collector/components/)、
