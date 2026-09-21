@@ -26,6 +26,8 @@ pub fn correlate_incident_events(Array[IncidentEvent], Int) -> Array[Correlation
 
 pub fn empty_incident_graph() -> IncidentGraph
 
+pub fn evaluate_correlation_rules(Array[CanonicalEvent], Array[CorrelationRule]) -> IncidentGraph raise CorrelationRuleError
+
 pub fn evaluate_diagnostic_rules(Timeline, Array[DiagnosticRule]) -> DiagnosticReport
 
 pub fn filter_timeline_by_source(Timeline, String) -> Timeline
@@ -52,6 +54,8 @@ pub fn render_json_report(ForensicReport) -> String
 
 pub fn render_markdown_report(ForensicReport) -> String
 
+pub fn validate_correlation_rules(Array[CorrelationRule]) -> Unit raise CorrelationRuleError
+
 pub fn validate_jsonl_profile(JsonlMappingProfile) -> Unit raise ProfileMapError
 
 pub fn verify_evidence_manifest(EvidenceManifest, Array[EvidenceDocument]) -> Bool
@@ -59,6 +63,10 @@ pub fn verify_evidence_manifest(EvidenceManifest, Array[EvidenceDocument]) -> Bo
 // Errors
 pub(all) suberror CorrelationError {
   InvalidWindow
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror CorrelationRuleError {
+  InvalidRule(rule_id~ : String, reason~ : String)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror EventAdaptError {
@@ -137,6 +145,16 @@ pub(all) enum CorrelationKind {
   Other(String)
 } derive(Eq, ToJson, @debug.Debug)
 
+pub(all) struct CorrelationRule {
+  rule_id : String
+  from : EventPattern
+  to : EventPattern
+  within_seconds : Int
+  same_resource : Bool
+  relation_type : RelationType
+  explanation : String
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct DiagnosticFinding {
   rule_id : String
   title : String
@@ -178,6 +196,17 @@ pub(all) enum EventOutcome {
   Failure
   Unknown
   Other(String)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct EventPattern {
+  category : EventCategory?
+  event_type : String?
+  action : String?
+  outcome : EventOutcome?
+  severity : Severity?
+  source_system : String?
+  source_component : String?
+  resource_kind : ResourceKind?
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct EventProvenance {

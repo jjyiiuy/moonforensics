@@ -41,8 +41,8 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
   Profile 身份与版本写入证据溯源，输入格式变化不会污染分析核心。
 - `Processor` 由按声明顺序执行的阶段组成，负责结构化标识规范化、资源别名、来源/类别/资源
   过滤和时间窗口筛选；所有处理保持确定性且不修改原始内容与证据溯源。
-- `CorrelationRule` 计划支持有序时序、事件计数、属性匹配和分组键；规则只产生可解释关系，
-  不把时间相关性冒充根因。
+- `CorrelationRule` 已支持按类别、事件类型、动作、结果、级别、来源和资源类型声明两侧模式，
+  用有序时间窗口及同资源约束生成可解释关系；规则只产生关系假设，不把时间相关性冒充根因。
 - `IncidentGraph` 保存事件节点、关系边和诊断。边包含规则 ID、资源键、时间差、证据位置、
   匹配原因和 `Observed/Hypothesis` 状态；时间线、发现和报告均从图派生。
 
@@ -93,6 +93,7 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 ├── ingest_plain_text.mbt       # 纯文本日志导入
 ├── mapping_profile.mbt         # 版本化 JSONL 映射 Profile
 ├── processor.mbt               # CanonicalEvent 转换与筛选管线
+├── correlation_rule.mbt        # 声明式时序关联规则与事件图边
 ├── normalize.mbt               # 时间、级别和来源标准化
 ├── report.mbt                  # Markdown 与 JSON 报告
 ├── rules.mbt                   # 诊断规则和证据引用
