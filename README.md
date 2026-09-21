@@ -43,11 +43,12 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
   过滤和时间窗口筛选；所有处理保持确定性且不修改原始内容与证据溯源。
 - `CorrelationRule` 已支持按类别、事件类型、动作、结果、级别、来源和资源类型声明两侧模式，
   用有序时间窗口及同资源约束生成可解释关系；规则只产生关系假设，不把时间相关性冒充根因。
-- `IncidentGraph` 保存事件节点、关系边和诊断。边包含规则 ID、资源键、时间差、证据位置、
-  匹配原因和 `Observed/Hypothesis` 状态；时间线、发现和报告均从图派生。
+- `IncidentGraph` 由构建器按事件时间稳定排序节点，并保存关系边和数据质量诊断。边包含规则
+  ID、资源键、时间差、证据位置、匹配原因和 `Observed/Hypothesis` 状态；时间线、发现和报告
+  均从图派生。
 
-当前 `correlate_events` 和 `DiagnosticRule` 仍作为兼容视图，下一阶段会映射到声明式规则。
-调用方只应选择 Profile 和规则，不应逐条手工构造关联事件。
+当前 `correlate_events` 和 `DiagnosticRule` 仍作为兼容视图；声明式规则通过
+`build_incident_graph` 生成带证据的关系图。调用方只应选择 Profile 和规则，不应逐条手工构造关联事件。
 
 设计参考公开标准的分层思想，不复制实现代码：
 [OpenTelemetry 日志模型](https://opentelemetry.io/docs/specs/otel/logs/data-model/)、
@@ -94,6 +95,7 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 ├── mapping_profile.mbt         # 版本化 JSONL 映射 Profile
 ├── processor.mbt               # CanonicalEvent 转换与筛选管线
 ├── correlation_rule.mbt        # 声明式时序关联规则与事件图边
+├── graph.mbt                   # 稳定节点、关系边和可解释诊断的图构建器
 ├── normalize.mbt               # 时间、级别和来源标准化
 ├── report.mbt                  # Markdown 与 JSON 报告
 ├── rules.mbt                   # 诊断规则和证据引用

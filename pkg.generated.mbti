@@ -14,6 +14,8 @@ pub fn apply_jsonl_profile(Array[JsonlRecord], JsonlMappingProfile, ProfileEvide
 
 pub fn build_evidence_manifest(Array[EvidenceDocument]) -> EvidenceManifest
 
+pub fn build_incident_graph(Array[CanonicalEvent], Array[CorrelationRule]) -> IncidentGraph raise CorrelationRuleError
+
 pub fn build_timeline(Array[NormalizedEvent]) -> Timeline
 
 pub fn canonicalize_incident_event(IncidentEvent, TelemetrySource, ResourceRef?, EventCategory, String, String?, EventOutcome, NormalizedTimestamp?, EventProvenance) -> CanonicalEvent
