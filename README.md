@@ -11,8 +11,8 @@ MoonForensics 是一个 MoonBit 应用服务离线故障复盘库，以发布或
 当前交付为分析库、静态演示数据和最小 CLI。JSONL 与固定格式文本已通过显式映射
 适配为统一事件，CLI `analyze` 已贯通适配、时间线和候选关联；它仍不读取主机文件，
 也不声称能自动理解任意供应商日志。当前模型层已经提供 `CanonicalEvent`、资源实体、
-事件分类、证据来源和关系边类型；版本化 JSONL Profile 已能复用嵌套字段与资源身份映射，
-处理器和声明式规则将在此模型上增量实现。
+事件分类、证据来源和关系边类型；版本化 JSONL Profile 与确定性的 Processor 管线已能复用
+字段映射、规范化、资源别名和筛选步骤，声明式规则将在此模型上增量实现。
 
 ## 统一抽象与关联前提
 
@@ -39,7 +39,8 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
   动作、结果、级别、正文、属性和 `EventProvenance`。
 - `Profile` 用版本化配置描述嵌套对象路径、常量/可选值、事件分类、资源前缀和精确别名；
   Profile 身份与版本写入证据溯源，输入格式变化不会污染分析核心。
-- `Processor` 负责时间/级别标准化、资源别名、过滤和证据摘要，所有处理保持确定性。
+- `Processor` 由按声明顺序执行的阶段组成，负责结构化标识规范化、资源别名、来源/类别/资源
+  过滤和时间窗口筛选；所有处理保持确定性且不修改原始内容与证据溯源。
 - `CorrelationRule` 计划支持有序时序、事件计数、属性匹配和分组键；规则只产生可解释关系，
   不把时间相关性冒充根因。
 - `IncidentGraph` 保存事件节点、关系边和诊断。边包含规则 ID、资源键、时间差、证据位置、
@@ -91,6 +92,7 @@ EvidenceRecord → Profile → CanonicalEvent → Processor → CorrelationRule 
 ├── ingest_jsonl.mbt            # JSONL 导入
 ├── ingest_plain_text.mbt       # 纯文本日志导入
 ├── mapping_profile.mbt         # 版本化 JSONL 映射 Profile
+├── processor.mbt               # CanonicalEvent 转换与筛选管线
 ├── normalize.mbt               # 时间、级别和来源标准化
 ├── report.mbt                  # Markdown 与 JSON 报告
 ├── rules.mbt                   # 诊断规则和证据引用

@@ -44,6 +44,8 @@ pub fn parse_jsonl(String) -> Array[JsonlRecord] raise JsonlParseError
 
 pub fn parse_plain_text(String) -> Array[PlainTextRecord]
 
+pub fn process_events(Array[CanonicalEvent], ProcessorPipeline) -> Array[CanonicalEvent] raise ProcessorError
+
 pub fn query_timeline_window(Timeline, NormalizedTimestamp, NormalizedTimestamp) -> Timeline raise TimelineError
 
 pub fn render_json_report(ForensicReport) -> String
@@ -72,6 +74,11 @@ pub(all) suberror JsonlParseError {
 
 pub(all) suberror NormalizationError {
   InvalidTimestamp(String)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror ProcessorError {
+  InvalidWindow
+  InvalidStage(String)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror ProfileMapError {
@@ -351,6 +358,20 @@ pub(all) struct PlainTextRecord {
   line_number : Int
   text : String
 } derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct ProcessorPipeline {
+  name : String
+  stages : Array[ProcessorStage]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProcessorStage {
+  Normalize
+  AliasResource(ResourceAlias)
+  FilterSource(String)
+  FilterCategory(EventCategory)
+  FilterResource(String)
+  FilterTimeWindow(NormalizedTimestamp, NormalizedTimestamp)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ProfileEvidence {
   evidence_id : String
