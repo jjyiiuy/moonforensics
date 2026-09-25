@@ -39,6 +39,18 @@ test "normalizes severity aliases and source identifiers" {
 }
 
 ///|
+test "source identifiers omit empty components" {
+  assert_eq(
+    @moonforensics.normalize_source_id("orders-api", "", None),
+    "orders-api",
+  )
+  assert_eq(
+    @moonforensics.normalize_source_id("", "health-check", Some("node-1")),
+    "health-check/node-1",
+  )
+}
+
+///|
 test "normalized event preserves raw content and handles missing time" {
   let raw = "2026-01-15T10:00:00Z WARN service restarted  "
   let event = @moonforensics.normalize_event(

@@ -8,7 +8,11 @@ import {
 // Values
 pub fn adapt_jsonl_records(Array[JsonlRecord], JsonlEventMapping) -> Array[IncidentEvent] raise EventAdaptError
 
+pub fn adapt_jsonl_records_as_canonical(Array[JsonlRecord], JsonlEventMapping) -> Array[CanonicalEvent] raise EventAdaptError
+
 pub fn adapt_plain_text_records(Array[PlainTextRecord], PlainTextEventMapping) -> Array[IncidentEvent] raise EventAdaptError
+
+pub fn adapt_plain_text_records_as_canonical(Array[PlainTextRecord], PlainTextEventMapping) -> Array[CanonicalEvent] raise EventAdaptError
 
 pub fn analyze_with_pack(Array[CanonicalEvent], AnalysisPack) -> IncidentGraph raise CorrelationRuleError
 
@@ -333,6 +337,7 @@ pub(all) struct IncidentEvent {
   attributes : Json
   evidence : EventEvidence
 } derive(Eq, ToJson, @debug.Debug)
+pub fn IncidentEvent::to_canonical_event(Self) -> CanonicalEvent
 
 pub(all) struct IncidentGraph {
   nodes : Array[CanonicalEvent]

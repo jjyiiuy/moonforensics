@@ -192,6 +192,19 @@ pub fn adapt_jsonl_records(
 }
 
 ///|
+/// Adapts JSONL records through the canonical event contract.
+///
+/// This is the migration entry point for callers that still use
+/// JsonlEventMapping. The legacy mapping remains explicit, while the result
+/// is ready for processors, declarative rules, and incident graphs.
+pub fn adapt_jsonl_records_as_canonical(
+  records : Array[JsonlRecord],
+  mapping : JsonlEventMapping,
+) -> Array[CanonicalEvent] raise EventAdaptError {
+  adapt_jsonl_records(records, mapping).map(event => event.to_canonical_event())
+}
+
+///|
 /// Converts fixed-format text records to events with an explicit source mapping.
 pub fn adapt_plain_text_records(
   records : Array[PlainTextRecord],
@@ -250,9 +263,22 @@ pub fn adapt_plain_text_records(
 }
 
 ///|
+/// Adapts fixed-format text through the canonical event contract.
+pub fn adapt_plain_text_records_as_canonical(
+  records : Array[PlainTextRecord],
+  mapping : PlainTextEventMapping,
+) -> Array[CanonicalEvent] raise EventAdaptError {
+  adapt_plain_text_records(records, mapping).map(event => {
+    event.to_canonical_event()
+  })
+}
+
+///|
 /// Builds the existing timeline view from adapted events without losing event identity.
 pub fn incident_timeline(events : Array[IncidentEvent]) -> Timeline {
-  build_timeline(events.map(event => event.normalized))
+  build_timeline(
+    events.map(event => event.to_canonical_event().to_normalized_event()),
+  )
 }
 
 ///|
@@ -263,11 +289,12 @@ pub fn correlate_incident_events(
 ) -> Array[CorrelationGroup] raise CorrelationError {
   let correlation_events : Array[CorrelationEvent] = []
   for event in events {
-    match event.resource_id {
-      Some(resource_id) =>
+    let canonical = event.to_canonical_event()
+    match canonical.resource {
+      Some(resource) =>
         correlation_events.push({
-          event: event.normalized,
-          resource_id,
+          event: canonical.to_normalized_event(),
+          resource_id: resource.id,
           kind: event.kind,
         })
       None => ()

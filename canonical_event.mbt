@@ -101,6 +101,64 @@ pub fn CanonicalEvent::to_normalized_event(
 }
 
 ///|
+fn legacy_event_semantics(kind : CorrelationKind) -> (EventCategory, String) {
+  match kind {
+    CorrelationKind::Change => (EventCategory::Change, "legacy.change")
+    CorrelationKind::Alert => (EventCategory::Availability, "legacy.alert")
+    CorrelationKind::Crash => (EventCategory::Process, "legacy.crash")
+    CorrelationKind::Other(value) =>
+      (EventCategory::Other(value), "legacy.other")
+  }
+}
+
+///|
+/// Converts a legacy adapter result into the canonical event contract.
+///
+/// The bridge keeps the legacy source identifier, resource identity,
+/// attributes, raw content, and evidence line. It supplies conservative
+/// semantics for fields that the legacy mapping does not describe.
+pub fn IncidentEvent::to_canonical_event(
+  self : IncidentEvent,
+) -> CanonicalEvent {
+  let (category, event_type) = legacy_event_semantics(self.kind)
+  let source : TelemetrySource = {
+    system: self.normalized.source_id,
+    component: "",
+    host: None,
+    instrumentation_scope: Some("legacy-adapter"),
+  }
+  let resource = match self.resource_id {
+    Some(resource_id) =>
+      Some({
+        kind: ResourceKind::Custom("legacy"),
+        id: resource_id,
+        attributes: {},
+      })
+    None => None
+  }
+  canonicalize_incident_event(
+    self,
+    source,
+    resource,
+    category,
+    event_type,
+    None,
+    EventOutcome::Unknown,
+    None,
+    {
+      evidence_id: self.evidence.evidence_id,
+      path: self.evidence.evidence_id,
+      line_number: Some(self.evidence.line_number),
+      byte_offset: None,
+      byte_length: None,
+      sha256: None,
+      profile_id: "legacy-adapter",
+      profile_version: "1",
+    },
+  )
+}
+
+///|
 /// Bridges the existing adapter result into the canonical model. Classification,
 /// resource identity, source structure, and provenance are explicit inputs so
 /// this bridge never guesses business semantics from a message.

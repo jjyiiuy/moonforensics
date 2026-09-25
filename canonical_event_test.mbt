@@ -126,6 +126,43 @@ test "incident event bridge keeps adapter attributes and explicit classification
 }
 
 ///|
+test "legacy incident event bridge preserves source and evidence" {
+  let timestamp = try! @moonforensics.normalize_timestamp(
+    "2026-03-08T09:00:40Z",
+  )
+  let incident = @moonforensics.IncidentEvent::{
+    event_id: "health-1",
+    normalized: @moonforensics.NormalizedEvent::{
+      timestamp: Some(timestamp),
+      severity: Some(@moonforensics.Severity::Error),
+      source_id: "health/checker",
+      raw_content: "health check failed",
+    },
+    resource_id: Some("orders-api"),
+    kind: @moonforensics.CorrelationKind::Alert,
+    attributes: { "reason": "timeout" },
+    evidence: @moonforensics.EventEvidence::{
+      evidence_id: "health.log",
+      line_number: 4,
+    },
+  }
+  let canonical = incident.to_canonical_event()
+  assert_eq(canonical.source.system, "health/checker")
+  assert_eq(canonical.source.component, "")
+  assert_eq(canonical.to_normalized_event().source_id, "health/checker")
+  assert_eq(canonical.resource.unwrap().id, "orders-api")
+  assert_eq(
+    canonical.resource.unwrap().kind,
+    @moonforensics.ResourceKind::Custom("legacy"),
+  )
+  assert_eq(canonical.category, @moonforensics.EventCategory::Availability)
+  assert_eq(canonical.event_type, "legacy.alert")
+  assert_eq(canonical.provenance.evidence_id, "health.log")
+  assert_eq(canonical.provenance.line_number, Some(4))
+  assert_eq(canonical.provenance.profile_id, "legacy-adapter")
+}
+
+///|
 test "incident graph keeps relation explanation and status" {
   let graph = @moonforensics.IncidentGraph::{
     nodes: [],

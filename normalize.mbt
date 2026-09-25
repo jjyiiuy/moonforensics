@@ -232,10 +232,23 @@ pub fn normalize_source_id(
 ) -> String {
   let system = system.trim().to_owned()
   let component = component.trim().to_owned()
-  match host {
-    Some(host) => "\{system}/\{component}/\{host.trim()}"
-    None => "\{system}/\{component}"
+  let parts : Array[String] = []
+  if system != "" {
+    parts.push(system)
   }
+  if component != "" {
+    parts.push(component)
+  }
+  match host {
+    Some(host) => {
+      let host = host.trim()
+      if host != "" {
+        parts.push(host.to_owned())
+      }
+    }
+    None => ()
+  }
+  parts.join("/")
 }
 
 ///|

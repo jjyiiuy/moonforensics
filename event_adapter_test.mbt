@@ -33,6 +33,25 @@ test "jsonl adapter creates a reusable event contract" {
 }
 
 ///|
+test "jsonl adapter exposes the canonical migration path" {
+  let records = @moonforensics.parse_jsonl(
+    (
+      #|{"event_id":"evt-1","timestamp":"2026-03-08T09:00:00Z","source":"gateway","severity":"WARN","resource":"orders-api"}
+    ),
+  )
+  let events = @moonforensics.adapt_jsonl_records_as_canonical(
+    records,
+    adapter_json_mapping(),
+  )
+  assert_eq(events.length(), 1)
+  assert_eq(events[0].event_id, "evt-1")
+  assert_eq(events[0].source.system, "fixture/gateway")
+  assert_eq(events[0].resource.unwrap().id, "orders-api")
+  assert_eq(events[0].provenance.evidence_id, "gateway.jsonl")
+  assert_eq(events[0].provenance.profile_id, "legacy-adapter")
+}
+
+///|
 test "jsonl adapter uses an explicit resource override" {
   let records = @moonforensics.parse_jsonl(
     (
@@ -123,6 +142,28 @@ test "plain text adapter preserves line evidence and rejects malformed text" {
   } noraise {
     _ => fail("expected malformed text to fail")
   }
+}
+
+///|
+test "plain text adapter exposes the canonical migration path" {
+  let records = @moonforensics.parse_plain_text(
+    (
+      #|2026-03-08T09:00:40Z ERROR health_check_failed service=orders-api
+    ),
+  )
+  let events = @moonforensics.adapt_plain_text_records_as_canonical(records, @moonforensics.PlainTextEventMapping::{
+    system: "fixture",
+    component: "health-check",
+    resource_id: Some("orders-api"),
+    kind: @moonforensics.CorrelationKind::Alert,
+    evidence_id: "health.log",
+  })
+  assert_eq(events.length(), 1)
+  assert_eq(events[0].source.system, "fixture/health-check")
+  assert_eq(events[0].source.component, "")
+  assert_eq(events[0].resource.unwrap().id, "orders-api")
+  assert_eq(events[0].event_type, "legacy.alert")
+  assert_eq(events[0].provenance.line_number, Some(1))
 }
 
 ///|
