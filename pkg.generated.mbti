@@ -50,6 +50,10 @@ pub fn incident_timeline(Array[IncidentEvent]) -> Timeline
 
 pub fn latency_analysis_pack() -> AnalysisPack
 
+pub fn list_profiles(ProfileCatalog) -> Array[JsonlMappingProfile]
+
+pub fn new_profile_catalog(Array[JsonlMappingProfile]) -> ProfileCatalog raise ProfileCatalogError
+
 pub fn normalize_event(String?, String?, String, String, String?, String) -> NormalizedEvent raise NormalizationError
 
 pub fn normalize_severity(String) -> Severity
@@ -66,9 +70,13 @@ pub fn process_events(Array[CanonicalEvent], ProcessorPipeline) -> Array[Canonic
 
 pub fn query_timeline_window(Timeline, NormalizedTimestamp, NormalizedTimestamp) -> Timeline raise TimelineError
 
+pub fn register_profile(ProfileCatalog, JsonlMappingProfile) -> ProfileCatalog raise ProfileCatalogError
+
 pub fn render_json_report(ForensicReport) -> String
 
 pub fn render_markdown_report(ForensicReport) -> String
+
+pub fn resolve_profile(ProfileCatalog, String, String) -> JsonlMappingProfile raise ProfileCatalogError
 
 pub fn validate_analysis_pack(AnalysisPack) -> Unit raise CorrelationRuleError
 
@@ -105,6 +113,12 @@ pub(all) suberror NormalizationError {
 pub(all) suberror ProcessorError {
   InvalidWindow
   InvalidStage(String)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror ProfileCatalogError {
+  InvalidProfile(field~ : String, reason~ : String)
+  DuplicateProfile(id~ : String, version~ : String)
+  MissingProfile(id~ : String, version~ : String)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror ProfileMapError {
@@ -426,6 +440,10 @@ pub(all) enum ProcessorStage {
   FilterCategory(EventCategory)
   FilterResource(String)
   FilterTimeWindow(NormalizedTimestamp, NormalizedTimestamp)
+} derive(Eq, @debug.Debug)
+
+pub struct ProfileCatalog {
+  profiles : Array[JsonlMappingProfile]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ProfileEvidence {
