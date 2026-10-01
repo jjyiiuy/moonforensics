@@ -238,9 +238,10 @@ pub fn evaluate_correlation_rules(
   rules : Array[CorrelationRule],
 ) -> IncidentGraph raise CorrelationRuleError {
   validate_correlation_rules(rules)
+  let nodes = sort_graph_events(events)
   let edges : Array[EvidenceRelation] = []
   for rule in rules {
-    add_rule_relations(events, rule, edges)
+    add_rule_relations(nodes, rule, edges)
   }
-  { nodes: events, edges, diagnostics: [], }
+  { nodes, edges, diagnostics: [], }
 }

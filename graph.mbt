@@ -1,12 +1,40 @@
 ///|
 fn compare_graph_events(left : CanonicalEvent, right : CanonicalEvent) -> Int {
-  match (left.event_time, right.event_time) {
+  let time_order = match (left.event_time, right.event_time) {
     (Some(left_time), Some(right_time)) =>
       compare_timestamps(left_time, right_time)
     (Some(_), None) => -1
     (None, Some(_)) => 1
     (None, None) => 0
   }
+  if time_order != 0 {
+    return time_order
+  }
+  let event_id_order = left.event_id.compare(right.event_id)
+  if event_id_order != 0 {
+    return event_id_order
+  }
+  let evidence_id_order = left.provenance.evidence_id.compare(
+    right.provenance.evidence_id,
+  )
+  if evidence_id_order != 0 {
+    return evidence_id_order
+  }
+  let path_order = left.provenance.path.compare(right.provenance.path)
+  if path_order != 0 {
+    return path_order
+  }
+  let line_order = match
+    (left.provenance.line_number, right.provenance.line_number) {
+    (Some(left_line), Some(right_line)) => left_line - right_line
+    (Some(_), None) => -1
+    (None, Some(_)) => 1
+    (None, None) => 0
+  }
+  if line_order != 0 {
+    return line_order
+  }
+  left.raw_content.compare(right.raw_content)
 }
 
 ///|
@@ -126,9 +154,9 @@ fn graph_diagnostics(
 ///|
 /// Builds a deterministic, explainable graph from canonical events and rules.
 ///
-/// Nodes are sorted by event time with stable input order for equal timestamps;
-/// events without timestamps are placed last. Rule edges retain their evidence
-/// references, explanation, rule ID, relation status, and resource key.
+/// Nodes are sorted by event time and canonical identity; events without
+/// timestamps are placed last. This makes rule edge indexes independent of
+/// input permutation while retaining evidence references and explanations.
 /// Diagnostics identify data-quality limits without discarding the source event.
 pub fn build_incident_graph(
   events : Array[CanonicalEvent],

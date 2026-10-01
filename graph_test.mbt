@@ -176,3 +176,28 @@ test "graph construction is repeatable for the same input" {
   let second = try! @moonforensics.build_incident_graph(events, [graph_rule()])
   assert_eq(first, second)
 }
+
+///|
+test "graph relations are stable when input events are permuted" {
+  let change = graph_event(
+    "change",
+    @moonforensics.EventCategory::Change,
+    "config.update",
+    Some("2026-09-20T00:00:00Z"),
+    Some("orders"),
+  )
+  let alert = graph_event(
+    "alert",
+    @moonforensics.EventCategory::Availability,
+    "health.failed",
+    Some("2026-09-20T00:00:00Z"),
+    Some("orders"),
+  )
+  let first = try! @moonforensics.build_incident_graph([change, alert], [
+    graph_rule(),
+  ])
+  let second = try! @moonforensics.build_incident_graph([alert, change], [
+    graph_rule(),
+  ])
+  assert_eq(first, second)
+}
