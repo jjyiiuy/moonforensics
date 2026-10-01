@@ -24,6 +24,32 @@ pub(all) struct CorrelationRule {
 } derive(Debug, Eq, ToJson)
 
 ///|
+/// The outcome of evaluating one rule against one event pair.
+pub(all) enum MatchTraceStatus {
+  Matched
+  Rejected
+} derive(Debug, Eq, ToJson)
+
+///|
+/// One explainable check performed while evaluating a rule match.
+pub(all) struct MatchTraceStep {
+  check : String
+  passed : Bool
+  detail : String
+} derive(Debug, Eq, ToJson)
+
+///|
+/// A structured explanation for a rule and event pair.
+pub(all) struct RuleMatchTrace {
+  rule_id : String
+  from_event_id : String
+  to_event_id : String
+  status : MatchTraceStatus
+  steps : Array[MatchTraceStep]
+  evidence_refs : Array[EventProvenance]
+} derive(Debug, Eq, ToJson)
+
+///|
 /// A declarative rule cannot be evaluated safely.
 pub(all) suberror CorrelationRuleError {
   InvalidRule(rule_id~ : String, reason~ : String)
@@ -113,51 +139,207 @@ pub fn validate_correlation_rules(
 }
 
 ///|
-fn pattern_matches(pattern : EventPattern, event : CanonicalEvent) -> Bool {
-  let category_matches = match pattern.category {
-    Some(expected) => event.category == expected
-    None => true
+fn category_label(category : EventCategory) -> String {
+  match category {
+    EventCategory::Change => "Change"
+    EventCategory::Availability => "Availability"
+    EventCategory::Performance => "Performance"
+    EventCategory::Process => "Process"
+    EventCategory::Other(value) => "Other(\{value})"
   }
-  let event_type_matches = match pattern.event_type {
-    Some(expected) => event.event_type == expected.trim().to_owned()
-    None => true
+}
+
+///|
+fn outcome_label(outcome : EventOutcome) -> String {
+  match outcome {
+    EventOutcome::Success => "Success"
+    EventOutcome::Failure => "Failure"
+    EventOutcome::Unknown => "Unknown"
+    EventOutcome::Other(value) => "Other(\{value})"
   }
-  let action_matches = match pattern.action {
-    Some(expected) => event.action == Some(expected.trim().to_owned())
-    None => true
+}
+
+///|
+fn severity_label(severity : Severity) -> String {
+  match severity {
+    Severity::Trace => "Trace"
+    Severity::Debug => "Debug"
+    Severity::Info => "Info"
+    Severity::Warning => "Warning"
+    Severity::Error => "Error"
+    Severity::Fatal => "Fatal"
+    Severity::Unknown(value) => "Unknown(\{value})"
   }
-  let outcome_matches = match pattern.outcome {
-    Some(expected) => event.outcome == expected
-    None => true
+}
+
+///|
+fn resource_kind_label(kind : ResourceKind) -> String {
+  match kind {
+    ResourceKind::Service => "Service"
+    ResourceKind::Instance => "Instance"
+    ResourceKind::Host => "Host"
+    ResourceKind::Container => "Container"
+    ResourceKind::Config => "Config"
+    ResourceKind::Trace => "Trace"
+    ResourceKind::Custom(value) => "Custom(\{value})"
   }
-  let severity_matches = match pattern.severity {
-    Some(expected) => event.severity == Some(expected)
-    None => true
-  }
-  let source_system_matches = match pattern.source_system {
-    Some(expected) => event.source.system == expected.trim().to_owned()
-    None => true
-  }
-  let source_component_matches = match pattern.source_component {
-    Some(expected) => event.source.component == expected.trim().to_owned()
-    None => true
-  }
-  let resource_kind_matches = match pattern.resource_kind {
-    Some(expected) =>
-      match event.resource {
-        Some(resource) => resource.kind == expected
-        None => false
+}
+
+///|
+fn trace_labeled_field(
+  check : String,
+  expected : String,
+  actual : String?,
+) -> MatchTraceStep {
+  match actual {
+    Some(actual) => {
+      let passed = actual == expected
+      {
+        check,
+        passed,
+        detail: if passed {
+          "expected and actual value are '\{expected}'"
+        } else {
+          "expected '\{expected}', actual '\{actual}'"
+        },
       }
-    None => true
+    }
+    None =>
+      {
+        check,
+        passed: false,
+        detail: "expected '\{expected}', actual value is missing",
+      }
   }
-  category_matches &&
-  event_type_matches &&
-  action_matches &&
-  outcome_matches &&
-  severity_matches &&
-  source_system_matches &&
-  source_component_matches &&
-  resource_kind_matches
+}
+
+///|
+fn trace_pattern(
+  pattern : EventPattern,
+  event : CanonicalEvent,
+  prefix : String,
+) -> (Bool, Array[MatchTraceStep]) {
+  let steps : Array[MatchTraceStep] = []
+  let mut matched = true
+  fn add_step(
+    steps : Array[MatchTraceStep],
+    matched : Bool,
+    step : MatchTraceStep,
+  ) -> Bool {
+    steps.push(step)
+    matched && step.passed
+  }
+  match pattern.category {
+    Some(expected) =>
+      matched = add_step(
+        steps,
+        matched,
+        trace_labeled_field(
+          "\{prefix}category",
+          category_label(expected),
+          Some(category_label(event.category)),
+        ),
+      )
+    None => ()
+  }
+  match pattern.event_type {
+    Some(expected) =>
+      matched = add_step(
+        steps,
+        matched,
+        trace_labeled_field(
+          "\{prefix}event_type",
+          expected.trim().to_owned(),
+          Some(event.event_type),
+        ),
+      )
+    None => ()
+  }
+  match pattern.action {
+    Some(expected) =>
+      matched = add_step(
+        steps,
+        matched,
+        trace_labeled_field(
+          "\{prefix}action",
+          expected.trim().to_owned(),
+          event.action,
+        ),
+      )
+    None => ()
+  }
+  match pattern.outcome {
+    Some(expected) =>
+      matched = add_step(
+        steps,
+        matched,
+        trace_labeled_field(
+          "\{prefix}outcome",
+          outcome_label(expected),
+          Some(outcome_label(event.outcome)),
+        ),
+      )
+    None => ()
+  }
+  match pattern.severity {
+    Some(expected) =>
+      matched = add_step(
+        steps,
+        matched,
+        trace_labeled_field(
+          "\{prefix}severity",
+          severity_label(expected),
+          match event.severity {
+            Some(actual) => Some(severity_label(actual))
+            None => None
+          },
+        ),
+      )
+    None => ()
+  }
+  match pattern.source_system {
+    Some(expected) =>
+      matched = add_step(
+        steps,
+        matched,
+        trace_labeled_field(
+          "\{prefix}source_system",
+          expected.trim().to_owned(),
+          Some(event.source.system),
+        ),
+      )
+    None => ()
+  }
+  match pattern.source_component {
+    Some(expected) =>
+      matched = add_step(
+        steps,
+        matched,
+        trace_labeled_field(
+          "\{prefix}source_component",
+          expected.trim().to_owned(),
+          Some(event.source.component),
+        ),
+      )
+    None => ()
+  }
+  match pattern.resource_kind {
+    Some(expected) =>
+      matched = add_step(
+        steps,
+        matched,
+        trace_labeled_field(
+          "\{prefix}resource_kind",
+          resource_kind_label(expected),
+          match event.resource {
+            Some(resource) => Some(resource_kind_label(resource.kind))
+            None => None
+          },
+        ),
+      )
+    None => ()
+  }
+  (matched, steps)
 }
 
 ///|
@@ -181,46 +363,142 @@ fn non_negative_delta_seconds(
 }
 
 ///|
+/// Explains every predicate and temporal constraint for one event pair.
+///
+/// The trace is useful both for successful relations and for rejected
+/// candidates. It never infers a cause; it only records which declared checks
+/// passed and which one prevented a match.
+pub fn trace_correlation_match(
+  rule : CorrelationRule,
+  from_event : CanonicalEvent,
+  to_event : CanonicalEvent,
+) -> RuleMatchTrace {
+  let (from_matches, from_steps) = trace_pattern(rule.from, from_event, "from.")
+  let (to_matches, to_steps) = trace_pattern(rule.to, to_event, "to.")
+  let steps : Array[MatchTraceStep] = []
+  for step in from_steps {
+    steps.push(step)
+  }
+  for step in to_steps {
+    steps.push(step)
+  }
+  let mut matched = from_matches && to_matches
+  match (from_event.event_time, to_event.event_time) {
+    (Some(from_time), Some(to_time)) => {
+      let order = compare_timestamps(from_time, to_time)
+      let ordered = order <= 0
+      steps.push({
+        check: "time.order",
+        passed: ordered,
+        detail: if order < 0 {
+          "from event precedes to event"
+        } else if order == 0 {
+          "events share a timestamp; stable node order decides"
+        } else {
+          "from event occurs after to event"
+        },
+      })
+      let delta_seconds = if ordered {
+        non_negative_delta_seconds(from_time, to_time)
+      } else {
+        0
+      }
+      let within_window = ordered && delta_seconds <= rule.within_seconds
+      steps.push({
+        check: "time.window",
+        passed: within_window,
+        detail: "delta \{delta_seconds}s, allowed \{rule.within_seconds}s",
+      })
+      matched = matched && ordered && within_window
+    }
+    _ => {
+      steps.push({
+        check: "time.order",
+        passed: false,
+        detail: "both events require an event timestamp",
+      })
+      matched = false
+    }
+  }
+  if rule.same_resource {
+    let resource_matches = same_resource(from_event, to_event)
+    let detail = match (from_event.resource, to_event.resource) {
+      (Some(from_resource), Some(to_resource)) =>
+        if resource_matches {
+          "typed resource identities are equal"
+        } else {
+          "typed resource identities differ: \{from_resource.id} vs \{to_resource.id}"
+        }
+      _ => "both events require a typed resource identity"
+    }
+    steps.push({ check: "resource.identity", passed: resource_matches, detail, })
+    matched = matched && resource_matches
+  } else {
+    steps.push({
+      check: "resource.identity",
+      passed: true,
+      detail: "same-resource constraint is disabled",
+    })
+  }
+  {
+    rule_id: rule.rule_id,
+    from_event_id: from_event.event_id,
+    to_event_id: to_event.event_id,
+    status: if matched {
+      MatchTraceStatus::Matched
+    } else {
+      MatchTraceStatus::Rejected
+    },
+    steps,
+    evidence_refs: [from_event.provenance, to_event.provenance],
+  }
+}
+
+///|
 fn add_rule_relations(
   nodes : Array[CanonicalEvent],
   rule : CorrelationRule,
   edges : Array[EvidenceRelation],
 ) -> Unit {
   for from_index, from_event in nodes {
-    if pattern_matches(rule.from, from_event) {
-      for to_index, to_event in nodes {
-        if from_index != to_index && pattern_matches(rule.to, to_event) {
-          match (from_event.event_time, to_event.event_time) {
-            (Some(from_time), Some(to_time)) => {
-              let order = compare_timestamps(from_time, to_time)
-              if (order < 0 || (order == 0 && from_index < to_index)) &&
-                non_negative_delta_seconds(from_time, to_time) <=
-                rule.within_seconds &&
-                (!rule.same_resource || same_resource(from_event, to_event)) {
-                let resource_key = if rule.same_resource {
-                  from_event.resource
-                } else {
-                  None
+    for to_index, to_event in nodes {
+      if from_index != to_index {
+        let trace = trace_correlation_match(rule, from_event, to_event)
+        match trace.status {
+          MatchTraceStatus::Matched =>
+            match (from_event.event_time, to_event.event_time) {
+              (Some(from_time), Some(to_time)) => {
+                let order = compare_timestamps(from_time, to_time)
+                if (order < 0 || (order == 0 && from_index < to_index)) &&
+                  non_negative_delta_seconds(from_time, to_time) <=
+                  rule.within_seconds &&
+                  (!rule.same_resource || same_resource(from_event, to_event)) {
+                  let resource_key = if rule.same_resource {
+                    from_event.resource
+                  } else {
+                    None
+                  }
+                  let delta_seconds = non_negative_delta_seconds(
+                    from_time, to_time,
+                  )
+                  edges.push({
+                    relation_id: "\{rule.rule_id}:\{from_index}:\{to_index}",
+                    relation_type: rule.relation_type,
+                    from_event_id: from_event.event_id,
+                    to_event_id: to_event.event_id,
+                    rule_id: Some(rule.rule_id),
+                    resource_key,
+                    delta_seconds: Some(delta_seconds),
+                    evidence_refs: [from_event.provenance, to_event.provenance],
+                    explanation: rule.explanation,
+                    status: RelationStatus::Hypothesis,
+                    match_trace: trace,
+                  })
                 }
-                let delta_seconds = non_negative_delta_seconds(
-                  from_time, to_time,
-                )
-                edges.push({
-                  relation_id: "\{rule.rule_id}:\{from_index}:\{to_index}",
-                  relation_type: rule.relation_type,
-                  from_event_id: from_event.event_id,
-                  to_event_id: to_event.event_id,
-                  rule_id: Some(rule.rule_id),
-                  resource_key,
-                  delta_seconds: Some(delta_seconds),
-                  evidence_refs: [from_event.provenance, to_event.provenance],
-                  explanation: rule.explanation,
-                  status: RelationStatus::Hypothesis,
-                })
               }
+              _ => ()
             }
-            _ => ()
-          }
+          MatchTraceStatus::Rejected => ()
         }
       }
     }

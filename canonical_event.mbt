@@ -222,6 +222,7 @@ pub(all) struct EvidenceRelation {
   evidence_refs : Array[EventProvenance]
   explanation : String
   status : RelationStatus
+  match_trace : RuleMatchTrace
 } derive(Debug, Eq, ToJson)
 
 ///|

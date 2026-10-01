@@ -79,6 +79,20 @@ fn change_to_alert_rule() -> @moonforensics.CorrelationRule {
 }
 
 ///|
+fn trace_has_step(
+  trace : @moonforensics.RuleMatchTrace,
+  check : String,
+  passed : Bool,
+) -> Bool {
+  for step in trace.steps {
+    if step.check == check && step.passed == passed {
+      return true
+    }
+  }
+  false
+}
+
+///|
 test "declarative rule relates change and alert with evidence" {
   let events = [
     rule_event(
@@ -109,6 +123,14 @@ test "declarative rule relates change and alert with evidence" {
   assert_eq(graph.edges[0].resource_key.unwrap().id, "orders")
   assert_eq(graph.edges[0].evidence_refs.length(), 2)
   assert_eq(graph.edges[0].status, @moonforensics.RelationStatus::Hypothesis)
+  assert_eq(
+    graph.edges[0].match_trace.status,
+    @moonforensics.MatchTraceStatus::Matched,
+  )
+  assert_true(trace_has_step(graph.edges[0].match_trace, "time.window", true))
+  assert_true(
+    trace_has_step(graph.edges[0].match_trace, "resource.identity", true),
+  )
 }
 
 ///|
@@ -195,6 +217,35 @@ test "same-resource and time-window constraints reject unrelated events" {
     change_to_alert_rule(),
   ])
   assert_eq(graph.edges.length(), 0)
+}
+
+///|
+test "rule traces explain rejected event pairs" {
+  let change = rule_event(
+    "change-1",
+    @moonforensics.EventCategory::Change,
+    "config.update",
+    "controller",
+    "2026-09-20T00:00:00Z",
+    Some("orders"),
+  )
+  let alert_other = rule_event(
+    "alert-other",
+    @moonforensics.EventCategory::Availability,
+    "health.failed",
+    "health",
+    "2026-09-20T00:00:30Z",
+    Some("payments"),
+  )
+  let trace = @moonforensics.trace_correlation_match(
+    change_to_alert_rule(),
+    change,
+    alert_other,
+  )
+  assert_eq(trace.status, @moonforensics.MatchTraceStatus::Rejected)
+  assert_true(trace_has_step(trace, "time.window", true))
+  assert_true(trace_has_step(trace, "resource.identity", false))
+  assert_eq(trace.evidence_refs.length(), 2)
 }
 
 ///|

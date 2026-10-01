@@ -82,6 +82,8 @@ pub fn render_markdown_report(ForensicReport) -> String
 
 pub fn resolve_profile(ProfileCatalog, String, String) -> JsonlMappingProfile raise ProfileCatalogError
 
+pub fn trace_correlation_match(CorrelationRule, CanonicalEvent, CanonicalEvent) -> RuleMatchTrace
+
 pub fn validate_analysis_pack(AnalysisPack) -> Unit raise CorrelationRuleError
 
 pub fn validate_correlation_rules(Array[CorrelationRule]) -> Unit raise CorrelationRuleError
@@ -338,6 +340,7 @@ pub(all) struct EvidenceRelation {
   evidence_refs : Array[EventProvenance]
   explanation : String
   status : RelationStatus
+  match_trace : RuleMatchTrace
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct EvidenceSource {
@@ -418,6 +421,17 @@ pub(all) struct JsonlMappingProfile {
 pub(all) struct JsonlRecord {
   line_number : Int
   value : Json
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum MatchTraceStatus {
+  Matched
+  Rejected
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct MatchTraceStep {
+  check : String
+  passed : Bool
+  detail : String
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct MetadataEntry {
@@ -522,6 +536,15 @@ pub(all) struct ResourceRef {
   kind : ResourceKind
   id : String
   attributes : Json
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct RuleMatchTrace {
+  rule_id : String
+  from_event_id : String
+  to_event_id : String
+  status : MatchTraceStatus
+  steps : Array[MatchTraceStep]
+  evidence_refs : Array[EventProvenance]
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) enum Severity {
