@@ -12,6 +12,23 @@ pub(all) struct AnalysisPack {
 } derive(Debug, Eq, ToJson)
 
 ///|
+/// Creates a caller-defined analysis pack after validating its metadata and rules.
+///
+/// The returned pack uses the same canonical event and rule contracts as the
+/// built-in packs, so callers can run it with `analyze_with_pack` without
+/// changing the graph or report pipeline.
+pub fn new_analysis_pack(
+  pack_id : String,
+  title : String,
+  description : String,
+  rules : Array[CorrelationRule],
+) -> AnalysisPack raise CorrelationRuleError {
+  let pack = { pack_id, title, description, rules, }
+  validate_analysis_pack(pack)
+  pack
+}
+
+///|
 /// Validates the metadata and rules of a reusable analysis pack.
 pub fn validate_analysis_pack(
   pack : AnalysisPack,

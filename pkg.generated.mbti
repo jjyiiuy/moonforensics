@@ -56,6 +56,8 @@ pub fn latency_analysis_pack() -> AnalysisPack
 
 pub fn list_profiles(ProfileCatalog) -> Array[JsonlMappingProfile]
 
+pub fn new_analysis_pack(String, String, String, Array[CorrelationRule]) -> AnalysisPack raise CorrelationRuleError
+
 pub fn new_profile_catalog(Array[JsonlMappingProfile]) -> ProfileCatalog raise ProfileCatalogError
 
 pub fn normalize_event(String?, String?, String, String, String?, String) -> NormalizedEvent raise NormalizationError

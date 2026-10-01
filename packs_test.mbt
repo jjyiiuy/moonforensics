@@ -153,6 +153,80 @@ test "latency pack keeps timeout matching inside its declared window" {
 }
 
 ///|
+test "caller-defined analysis packs reuse the canonical graph pipeline" {
+  let custom_rule = @moonforensics.CorrelationRule::{
+    rule_id: "deploy-then-health-failure",
+    from: @moonforensics.EventPattern::{
+      category: Some(@moonforensics.EventCategory::Change),
+      event_type: Some("deploy.completed"),
+      action: None,
+      outcome: None,
+      severity: None,
+      source_system: Some("release-controller"),
+      source_component: None,
+      resource_kind: Some(@moonforensics.ResourceKind::Service),
+    },
+    to: @moonforensics.EventPattern::{
+      category: Some(@moonforensics.EventCategory::Availability),
+      event_type: Some("health.failed"),
+      action: None,
+      outcome: None,
+      severity: None,
+      source_system: Some("health-monitor"),
+      source_component: None,
+      resource_kind: Some(@moonforensics.ResourceKind::Service),
+    },
+    within_seconds: 180,
+    same_resource: true,
+    relation_type: @moonforensics.RelationType::MatchedRule,
+    explanation: "A deployment was followed by a health failure on the same service.",
+  }
+  let pack = try! @moonforensics.new_analysis_pack(
+    "release-health",
+    "Release health analysis",
+    "Connects release completion events to subsequent health failures.",
+    [custom_rule],
+  )
+  let graph = try! @moonforensics.analyze_with_pack(
+    [
+      {
+        ..pack_event(
+          "health-1",
+          @moonforensics.EventCategory::Availability,
+          "health.failed",
+          "2026-09-20T00:01:00Z",
+          "checkout",
+        ),
+        source: @moonforensics.TelemetrySource::{
+          system: "health-monitor",
+          component: "checks",
+          host: None,
+          instrumentation_scope: None,
+        },
+      },
+      {
+        ..pack_event(
+          "deploy-1",
+          @moonforensics.EventCategory::Change,
+          "deploy.completed",
+          "2026-09-20T00:00:00Z",
+          "checkout",
+        ),
+        source: @moonforensics.TelemetrySource::{
+          system: "release-controller",
+          component: "deploy",
+          host: None,
+          instrumentation_scope: None,
+        },
+      },
+    ],
+    pack,
+  )
+  assert_eq(graph.edges.length(), 1)
+  assert_eq(graph.edges[0].rule_id, Some("deploy-then-health-failure"))
+}
+
+///|
 test "analysis pack validation rejects missing metadata" {
   let pack = @moonforensics.AnalysisPack::{
     pack_id: "",
@@ -167,5 +241,55 @@ test "analysis pack validation rejects missing metadata" {
     }
   } noraise {
     _ => fail("expected analysis pack validation to fail")
+  }
+}
+
+///|
+test "caller-defined analysis packs reject invalid rules at construction" {
+  try
+    @moonforensics.new_analysis_pack(
+      "invalid-pack",
+      "Invalid pack",
+      "This pack has a negative time window.",
+      [
+        {
+          ..@moonforensics.CorrelationRule::{
+            rule_id: "invalid-window",
+            from: @moonforensics.EventPattern::{
+              category: None,
+              event_type: None,
+              action: None,
+              outcome: None,
+              severity: None,
+              source_system: None,
+              source_component: None,
+              resource_kind: None,
+            },
+            to: @moonforensics.EventPattern::{
+              category: None,
+              event_type: None,
+              action: None,
+              outcome: None,
+              severity: None,
+              source_system: None,
+              source_component: None,
+              resource_kind: None,
+            },
+            within_seconds: 0,
+            same_resource: false,
+            relation_type: @moonforensics.RelationType::MatchedRule,
+            explanation: "placeholder",
+          },
+          within_seconds: -1,
+        },
+      ],
+    )
+  catch {
+    @moonforensics.CorrelationRuleError::InvalidRule(rule_id~, reason~) => {
+      assert_eq(rule_id, "invalid-window")
+      assert_eq(reason, "within_seconds must not be negative")
+    }
+  } noraise {
+    _ => fail("expected invalid caller-defined pack")
   }
 }
